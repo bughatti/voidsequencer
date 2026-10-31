@@ -197,19 +197,23 @@ local DEFAULTS = {
 	-- learned yet just fail and fall through, so one list covers every level:
 	-- Judgement 4, Holy Strike 6, Exorcism 20 (undead/demon only), Consecration 20,
 	-- Hammer of Wrath 44 (target <20%).
-	-- Seal upkeep: "/castsequence reset=28 Seal, null" casts the seal once, then sits
-	-- on the dead "null" entry (casts nothing) until 28s pass -- re-seals just before
-	-- the 30s seal expires instead of re-casting it every press (mana + GCD).
+	-- Seal upkeep: "/castsequence reset=28/combat Seal, null" casts the seal once, then
+	-- sits on the dead "null" entry (casts nothing) instead of re-casting it every press
+	-- (mana + GCD). reset=28 counts 28s WITHOUT a press (not the seal's age), so while you
+	-- mash it never fires; "/combat" re-seals at least once every fight. UNVERIFIED until
+	-- WoW Forever is live: if Judgement consumes the seal there (Classic rules), this
+	-- needs "Seal, Judgement" instead -- check the seal buff after one Judgement.
 	-- Judgement goes FIRST: off-GCD, so it fires alongside the GCD spell below it.
 	-- One step = priority mode either way (mash-safe). Swap the seal to Seal of Command
 	-- in the editor once you talent it.
 	["FOREVER_PALADIN"] = {
+		rev = 1,   -- 1: seal sequence also resets on leaving combat (re-seeds saved copies)
 		mods = { alt = "Holy Light", ctrl = "Divine Protection" },
 		st = {
-			{ "Judgement", "/castsequence reset=28 Seal of Righteousness, null", "Hammer of Wrath", "Holy Strike", "Exorcism" },
+			{ "Judgement", "/castsequence reset=28/combat Seal of Righteousness, null", "Hammer of Wrath", "Holy Strike", "Exorcism" },
 		},
 		aoe = {
-			{ "Judgement", "/castsequence reset=28 Seal of Righteousness, null", "Consecration", "Holy Strike", "Hammer of Wrath" },
+			{ "Judgement", "/castsequence reset=28/combat Seal of Righteousness, null", "Consecration", "Holy Strike", "Hammer of Wrath" },
 		},
 	},
 	-- Unholy DK. Built to match how the top Unholy DKs actually play it -- their cast
@@ -2764,6 +2768,21 @@ local function ApplySpec()
 	currentSpec = detectSpec()
 	local specDef = DEFAULTS[currentSpec]
 	if specDef then
+		-- Your edits are kept per spec (and per rotation): the one you're leaving is
+		-- stashed, and switching back restores it instead of re-seeding the defaults --
+		-- unless the defaults changed since (a new version replaces old edits, as before).
+		local db = VoidSequencerDB
+		db.specStash = db.specStash or {}
+		if db.seededSpec and db.seededSpec ~= currentSpec and db.seqST then
+			db.specStash[db.seededSpec] = { st = db.seqST, aoe = db.seqAOE, mods = db.mods,
+				aoeMode = db.aoe, ver = db.defaultsVer, rev = db.seededRev }
+		end
+		local saved = db.seededSpec ~= currentSpec and db.specStash[currentSpec]
+		if saved and saved.ver == DEFAULTS_VER and (saved.rev or 0) == (specDef.rev or 0) and saved.st then
+			db.seqST, db.seqAOE, db.mods, db.aoe = saved.st, saved.aoe, saved.mods, saved.aoeMode
+			db.seededSpec, db.defaultsVer, db.seededRev = currentSpec, DEFAULTS_VER, specDef.rev or 0
+		end
+		db.specStash[currentSpec] = nil   -- it's live in seqST/seqAOE now
 		if VoidSequencerDB.seededSpec ~= currentSpec
 			or VoidSequencerDB.defaultsVer ~= DEFAULTS_VER
 			or (VoidSequencerDB.seededRev or 0) ~= (specDef.rev or 0)
@@ -2823,8 +2842,14 @@ end
 -- so it waits for combat to end; never while something is on the cursor (a drag).
 local KEY1_SLOTS = { [1] = true, [73] = true, [85] = true, [97] = true, [109] = true }
 local pushed = {}
+-- Only while VoidSequencer is on and owns key 1: bound elsewhere (or off), slot 1 is
+-- an ordinary action button the player uses.
+local function OwnsKey1()
+	return VS.GetEnabled() and (VS.GetKey() or "1") == "1"
+end
 local function ClearPushedKey1()
 	if InCombatLockdown() or GetCursorInfo() then return end
+	if not OwnsKey1() then wipe(pushed) return end   -- re-checked: it can change in the wait
 	for slot, spellID in pairs(pushed) do
 		pushed[slot] = nil
 		local t, id = GetActionInfo(slot)
@@ -2841,7 +2866,7 @@ pushWatch:RegisterEvent("SPELL_PUSHED_TO_ACTIONBAR")
 pushWatch:RegisterEvent("PLAYER_REGEN_ENABLED")
 pushWatch:SetScript("OnEvent", function(_, event, spellID, slot)
 	if event == "SPELL_PUSHED_TO_ACTIONBAR" then
-		if not (KEY1_SLOTS[slot] and VS.GetEnabled()) then return end
+		if not (KEY1_SLOTS[slot] and OwnsKey1()) then return end
 		pushed[slot] = spellID
 		C_Timer.After(0.5, ClearPushedKey1)   -- let the game finish placing it first
 	elseif next(pushed) then

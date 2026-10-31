@@ -1,5 +1,12 @@
 # VoidSequencer Changelog
 
+## 1.0.1 (Beta) — 2026-10-31
+
+### Fixed
+- **Your edits are kept per spec.** Switching spec (or rotation) used to replace your edited sequence with the new spec's defaults, so switching back lost your edits. Each spec's edits now come back when you return to it.
+- **Key 1's action slot is only cleared while VoidSequencer is on and bound to key 1.** If you moved VoidSequencer to another key or turned it off, a new spell the game placed in slot 1 is left alone.
+- **WoW Forever Paladin:** the seal is recast at least once every fight (it only came back after 28 seconds without pressing the key).
+
 ## 1.0.0 (Beta) — 2026-10-30
 
 First public release.
