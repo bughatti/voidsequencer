@@ -349,7 +349,12 @@ local DEFAULTS = {
 		-- Death and Decay sits on the second Outbreak step, which only falls through to it once
 		-- Outbreak is out (1.7/min vs the top's ~1.3; its own step cast it 2.4).
 		-- rev 2: step 1 re-summons a missing ghoul.
-		rev = 4,
+		-- rev 5 (ST, 2026-11-02 dummy): ST cast Festering + Scythe 4.1/min vs the top 3 Mythic
+		-- San'layn on Nek'zali's 7.6 (3.8 + 3.8), with Vampiric 9.3 vs 15.6 and Necrotic 4.1 vs
+		-- 7.7; AoE mode out-damaged ST on one dummy (its own Festering step casts 6.6/min).
+		-- Top players cast NO Death and Decay / Graveyard on single target. Fix as AoE rev 4:
+		-- a Festering step of its own in place of a plain Scourge Strike step.
+		rev = 5,
 		st = {
 			{ UH_GHOUL, UHS_CORE },
 			{ "Putrefy", "Scourge Strike" },
@@ -364,7 +369,7 @@ local DEFAULTS = {
 			{ UHS_CORE },
 			{ UHS_OUTBREAK, "Death Coil" },
 			{ UHS_CORE },
-			{ "Scourge Strike" },
+			{ "Festering Strike" },
 			{ UHS_CORE },
 			{ "Dark Transformation", "Scourge Strike" },
 			{ "Soul Reaper", "Scourge Strike" },

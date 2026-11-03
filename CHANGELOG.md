@@ -1,5 +1,11 @@
 # VoidSequencer Changelog
 
+## 1.0.4 (Beta) — 2026-11-02
+
+### Changed
+- **Unholy (San'layn) single target hits harder.** Festering Strike / Festering Scythe now has a step of its own, as in AoE, so it's cast closer to how often the top players do, feeding more Vampiric Strikes and Necrotic Coils. On a training dummy: 85K -> 109K damage per second.
+- **Void hub:** right-click it for **Copy settings from...** to take another character's settings for your Void addons.
+
 ## 1.0.3 (Beta) — 2026-11-02
 
 ### Changed
