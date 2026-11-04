@@ -142,6 +142,19 @@ local RESTO_LOOP = {
 local RESTO_CAT = "/castsequence reset=combat Rake, Shred, Shred, Shred, Shred, Rip, Rake, Shred, Shred, Shred, Ferocious Bite"
 
 local OUTLAW_CORE = "/castsequence reset=combat Sinister Strike, Sinister Strike, Pistol Shot, Sinister Strike, Dispatch"
+-- WoW Forever Rogue (see FOREVER_ROGUE): SnD at 2 combo points, Eviscerate at 4.
+-- PvP mode: no Slice and Dice (player fights are short burst), Eviscerate after 3 strikes.
+local FOREVER_ROGUE_PVP = "/castsequence reset=target/combat Sinister Strike, Sinister Strike, "
+	.. "Sinister Strike, Eviscerate"
+-- Two forms of each core. The guarded one ([nostealth]: never breaks Stealth) is for steps
+-- with no opener. The plain one follows the [stealth] Cheap Shot line, which already takes
+-- the press in Stealth; leaving its guard off keeps that step + the /stopattack tail
+-- under 255 chars.
+-- rev 3 (retail test, levels 4-5): mobs died after ~4 Sinister Strikes, so Eviscerate (after
+-- 6) never fired. Now 2 strikes -> SnD, 2 more -> Eviscerate (4 points; 5 after Cheap Shot).
+local FOREVER_ROGUE_OPEN = "/castsequence reset=target/combat Sinister Strike, Sinister Strike, Slice and Dice, "
+	.. "Sinister Strike, Sinister Strike, Eviscerate"
+local FOREVER_ROGUE_CORE = FOREVER_ROGUE_OPEN:gsub("^/castsequence ", "/castsequence [nostealth] ")
 -- Assassination / Subtlety cores (see their rev 1 notes). Keep each macro under 255 chars.
 local ASSA_CORE = "/castsequence reset=combat Garrote, Mutilate, Mutilate, Rupture, Mutilate, Mutilate, Envenom, "
 	.. "Mutilate, Mutilate, Envenom, Mutilate, Mutilate, Envenom"
@@ -188,6 +201,10 @@ local UHS_OUTBREAK = "/castsequence reset=combat Outbreak, null"
 local UH_GHOUL = "/cast [nopet] Raise Dead"
 -- Havoc Metamorphosis is a targeted leap: land on yourself so key 1 never needs a click.
 local HAVOC_META = "/cast [@player] Metamorphosis"
+-- Feral (rev 1, see DEFAULTS["Feral:Druid of the Claw"]): 4 builders before every finisher.
+-- Ferocious Bite is the base name, so a Ravage proc casts Ravage.
+local FERAL_CORE = "/castsequence reset=combat Rake, Shred, Shred, Shred, Rip, Shred, Shred, Shred, Shred, "
+	.. "Ferocious Bite, Rake, Shred, Shred, Shred, Ferocious Bite"
 local DEFAULTS = {
 	-- WoW Forever Paladin, leveling 1-60 (no specs in Forever; keyed by class).
 	-- Built from Forever leveling guides (Oct 2026). Forever changes
@@ -214,6 +231,67 @@ local DEFAULTS = {
 		},
 		aoe = {
 			{ "Judgement", "/castsequence reset=28/combat Seal of Righteousness, null", "Consecration", "Holy Strike", "Hammer of Wrath" },
+		},
+	},
+	-- WoW Forever Rogue, leveling 1-60 with swords (Combat). From the Forever leveling guides
+	-- (Oct 2026): Sinister Strike builds, Slice and Dice is kept up, Eviscerate finishes,
+	-- Riposte when it procs, Blade Flurry for packs. Ambush needs a dagger, so it's out.
+	-- A macro can't see combo points, so the castsequence paces them: SnD at 2, Eviscerate
+	-- at 4. It only advances on a cast that lands, so mashing can't skip ahead, and
+	-- reset=target/combat starts it over on a new target or fight (no stalling on a
+	-- finisher with 0 combo points). Spells not learned yet are trimmed out of it.
+	-- In Stealth the press opens with Cheap Shot (level 26; the [stealth] condition makes
+	-- the line a no-op otherwise). Garrote stays off key 1: it needs you behind the target
+	-- and its failure would block the press. Adrenaline Rush, Blood Fury, Kick, Gouge,
+	-- Blind, Vanish stay on their own keys (world PvP timing).
+	-- Riposte (talent, off the GCD in Forever) leads the second step with the core as its
+	-- fallback. Blade Flurry IS on the GCD (1 s) in Forever, so when it's on cooldown it
+	-- would block the core: it gets its own step (the Outlaw pattern; a mashing player loses
+	-- nothing). No Alt/Ctrl casts (user, 2026-11-01): Evasion, Sprint and the rest live on
+	-- keys 2-7 and Shift 1-7.
+	["FOREVER_ROGUE"] = {
+		-- rev 2 (2026-11-01, retail test): opener steps use the unguarded core + /stopattack
+		-- tail; re-seeds saved copies that still carry the longer guarded opener step.
+		-- rev 3: shorter castsequence (Eviscerate after 4 strikes).
+		rev = 3,
+		mods = {},
+		cond = { ["Cheap Shot"] = "[stealth]", ["Sinister Strike"] = "[nostealth]", ["Blade Flurry"] = "[nostealth]",
+			["Blood Fury"] = "[harm,nodead]" },
+		-- Out of combat and not stealthed, key 1 enters Stealth (user, 2026-11-01: one key
+		-- to stealth, target, open). Replaces /startattack, which would break Stealth; Cheap
+		-- Shot and Sinister Strike start auto-attack themselves. [nomounted]: never dismounts.
+		-- Only once Cheap Shot is learned (opener); before that it's plain /startattack.
+		-- No /startattack with it: it doesn't fit under 255 chars and would break Stealth.
+		macroHead = "/cast [nocombat,nostealth,nomounted]Stealth\n",
+		-- Test 2026-11-01 (retail orc): a press out of range tried Sinister Strike, which arms
+		-- auto-attack; the next press stealthed, and the first swing on arrival broke Stealth
+		-- before Cheap Shot. While stealthed, cancel any pending auto-attack.
+		macroTail = "/stopattack [stealth]",
+		opener = "Cheap Shot",
+		st = {
+			{ "Cheap Shot", FOREVER_ROGUE_OPEN },
+			{ "Riposte", FOREVER_ROGUE_CORE },
+		},
+		aoe = {
+			{ "Cheap Shot", FOREVER_ROGUE_OPEN },
+			{ "Blade Flurry" },
+			{ "Cheap Shot", FOREVER_ROGUE_OPEN },
+			{ "Riposte", FOREVER_ROGUE_CORE },
+		},
+		-- World PvP (third position on the switch, user 2026-11-01). Every other press is a
+		-- plain Sinister Strike (Riposte first when it's up), so spending combo points by
+		-- hand (Kidney Shot at 30) can't leave the castsequence waiting on an Eviscerate at
+		-- 0 points; with mashing those extra strikes also push Eviscerate toward 4-5 points.
+		-- All control (Kick, Gouge, Kidney Shot, Blind, Vanish) stays on the player's keys.
+		-- Racials (user, 2026-11-01: "any race specific stuff needs to be in pvp rotation so
+		-- i dont have to think about it"): Blood Fury (Orc) leads both steps. In Forever it's
+		-- off the GCD and doesn't break Stealth (wowhead forever spell 20572), so it goes out
+		-- with the opener for free and a cooldown never blocks the press; [harm,nodead] keeps
+		-- the Stealth-only press (no target) from wasting it. Unknown spells are trimmed, so
+		-- other races just skip it.
+		pvp = {
+			{ "Blood Fury", "Cheap Shot", FOREVER_ROGUE_PVP },
+			{ "Blood Fury", "Riposte", "Sinister Strike" },
 		},
 	},
 	-- Unholy DK. Built to match how the top Unholy DKs actually play it -- their cast
@@ -517,6 +595,36 @@ local DEFAULTS = {
 			{ "Void Volley", "Mind Blast", "Shadow Word: Madness", "Mind Flay" },
 			{ "Tentacle Slam", "Shadow Word: Madness", "Mind Flay" },
 			{ "Shadow Word: Madness", "Mind Flay" },
+		},
+	},
+	-- Feral, Druid of the Claw (rev 1, 2026-11-03). Replaces the generated entry, whose ST list
+	-- came from top raid Ferals on another build (Feral Frenzy, Berserk, Convoke, Moonfire):
+	-- on the M+ build (Frantic Frenzy + Incarnation) ST mode skipped both cooldowns, which
+	-- did 15-34% of the damage in the player's open-world log. That log (AoE list, plain
+	-- priority) also cast finishers at 1-2 combo points: Rip 6 of 20, Ravage 6 of 17, Bite 7
+	-- of 11. ST now runs FERAL_CORE (a castsequence, so mashing can't skip a builder) and
+	-- takes either version of each cooldown; unknown spells drop out. Incarnation / Berserk /
+	-- Tiger's Fury are off the GCD, so they lead every step. Moonfire is left out (without
+	-- Lunar Inspiration it would knock you out of Cat Form), and so is Convoke (a channel
+	-- the next press would clip). Top Ferals on Nek'zali (single target), per minute:
+	-- Shred 17.3, Bite 13.4, Rake 5.7, Rip 3.4, Tiger's Fury 2.0, Feral Frenzy 2.0.
+	-- AoE is the generated list as it was.
+	["Feral:Druid of the Claw"] = {
+		mods = {},
+		hero = "Druid of the Claw",
+		class = "DRUID",
+		rev = 1,
+		fallback = { "Wrath", "Shred", "Ferocious Bite", "Mangle", "Thrash" },
+		st = {
+			{ "Incarnation: Avatar of Ashamane", "Berserk", "Tiger's Fury", FERAL_CORE },
+			{ "Incarnation: Avatar of Ashamane", "Berserk", "Tiger's Fury", "Frantic Frenzy", "Feral Frenzy", "Shred" },
+			{ "Incarnation: Avatar of Ashamane", "Berserk", "Tiger's Fury", FERAL_CORE },
+			{ "Incarnation: Avatar of Ashamane", "Berserk", "Tiger's Fury", FERAL_CORE },
+		},
+		aoe = {
+			{ "Incarnation: Avatar of Ashamane" }, { "Frantic Frenzy" }, { "Tiger's Fury" }, { "Rip" },
+			{ "Swipe" }, { "Shred" }, { "Ferocious Bite" }, { "Rake" }, { "Swipe" }, { "Ravage" },
+			{ "Primal Wrath" }, { "Shred" }, { "Ferocious Bite" }, { "Swipe" },
 		},
 	},
 	-- Guardian Druid (tank). Built to match how the top M+ Guardian bears actually
@@ -1076,7 +1184,9 @@ local function levelingKey()
 end
 
 local function detectSpec()
-	if IS_FOREVER then
+	-- testForever (dev, /vsforever): a retail character runs its class's WoW Forever
+	-- rotation, to test it before Forever is playable.
+	if IS_FOREVER or (VoidSequencerDB and VoidSequencerDB.testForever) then
 		local _, classFile = UnitClass("player")
 		currentSpecID = nil
 		return classFile and ("FOREVER_" .. classFile) or DEFAULT_SPEC
@@ -1395,11 +1505,28 @@ local function loadTable(name, seq, numVar, lines, noAttack, fallback)
 	if #kept == 0 then   -- nothing known (spellbook not loaded yet): the full list as-is
 		for i = 1, #seq do kept[i] = (stepToMacro(seq[i])) end
 	end
+	-- A spec's macroHead replaces the /startattack line (FOREVER_ROGUE: Stealth out of
+	-- combat; a /startattack there would break Stealth before the [stealth] opener ran).
+	-- Until the spec's opener is learned (Cheap Shot, level 26) there's nothing to open
+	-- with: no auto-Stealth, and the [nostealth] guard comes off so key 1 attacks from
+	-- Stealth instead of doing nothing.
+	local dSpec = DEFAULTS[currentSpec]
+	local attack, noGuard, tail = "/startattack\n", false, ""
+	if dSpec and dSpec.macroHead then
+		if not dSpec.opener or knownForMacro(dSpec.opener) then
+			attack = dSpec.macroHead
+			-- Last line, so if a macro ever runs long capMacro drops this one first.
+			if dSpec.macroTail then tail = "\n" .. dSpec.macroTail end
+		else
+			noGuard = true
+		end
+	end
 	for i, body in ipairs(kept) do
-		local head = noAttack and "" or "/startattack\n"
-		local macro = head .. body
+		if noGuard then body = (body:gsub("%[nostealth%] ", "")) end
+		local head = noAttack and "" or attack
+		local macro = head .. body .. tail
 		if #macro > 255 and modPrefix() ~= "" and body:sub(1, #modPrefix()) == modPrefix() then
-			macro = head .. body:sub(#modPrefix() + 1)   -- the rotation line wins over held-key extras
+			macro = head .. body:sub(#modPrefix() + 1) .. tail   -- the rotation line wins over held-key extras
 		end
 		macro = capMacro(macro)
 		lines[#lines + 1] = name .. "[" .. i .. "] = [=======[" .. macro .. "]=======]"
@@ -1420,6 +1547,9 @@ local function LoadSequences(onlyIfChanged)
 	local fb = d and d.fallback
 	loadTable("macrosST", seqOrPriority("ST"), "numST", lines, noAttack, fb)
 	loadTable("macrosAOE", seqOrPriority("AOE"), "numAOE", lines, noAttack, fb)
+	-- PvP: a third mode only for specs that define one (d.pvp, defaults only, not edited).
+	local pvpSeq = d and d.pvp
+	loadTable("macrosPVP", pvpSeq or {}, "numPVP", lines, noAttack)
 	-- Optional form loop (d.formLoop = { rule = "<conditions> form; ...", seq = {...} }):
 	-- the click snippet runs it when the rule says "form" (Resto: Cat Form, no friendly hovered).
 	local fl = d and d.formLoop
@@ -1430,6 +1560,10 @@ local function LoadSequences(onlyIfChanged)
 	if InCombatLockdown() then seqDirty = true; return end
 	loadedText = text
 	btn:Execute(text)
+	-- The switch offers PvP only when this spec has a PvP rotation.
+	local hasPvp = (pvpSeq and #pvpSeq > 0) and true or false
+	btn:SetAttribute("haspvp", hasPvp)
+	if not hasPvp then btn:SetAttribute("pvp", false) end
 	btn:SetAttribute("step", 1)
 	btn:SetAttribute("fstep", 1)
 	btn:SetAttribute("stepped", false)
@@ -1473,6 +1607,9 @@ btn:WrapScript(btn, "OnClick", [[
 	local aoe = self:GetAttribute("aoe")
 	local macros = aoe and macrosAOE or macrosST
 	local n = aoe and numAOE or numST
+	if self:GetAttribute("pvp") and numPVP and numPVP > 0 then
+		macros, n = macrosPVP, numPVP
+	end
 	if not macros or not n or n < 1 then return end
 	local step = self:GetAttribute("step") or 1
 	if step > n then step = 1 end
@@ -1500,12 +1637,22 @@ local toggle = CreateFrame("Button", "VoidSeqToggle", UIParent, "SecureHandlerBa
 toggle:RegisterForClicks("AnyUp")
 SecureHandlerSetFrameRef(toggle, "seq", btn)
 SecureHandlerWrapScript(toggle, "OnClick", toggle, [[
+	-- Single Target -> AoE -> PvP (only if the spec has one) -> Single Target.
 	local seq = self:GetFrameRef("seq")
-	seq:SetAttribute("aoe", not seq:GetAttribute("aoe"))
+	if seq:GetAttribute("pvp") then
+		seq:SetAttribute("pvp", false)
+		seq:SetAttribute("aoe", false)
+	elseif seq:GetAttribute("aoe") then
+		seq:SetAttribute("aoe", false)
+		if seq:GetAttribute("haspvp") then seq:SetAttribute("pvp", true) end
+	else
+		seq:SetAttribute("aoe", true)
+	end
 ]])
 
 -- The button shows the mode you are CURRENTLY in (not the one it switches to).
-local function modeLabel(aoe)
+local function modeLabel(aoe, pvp)
+	if pvp then return "|cffff4040PvP mode|r" end
 	return aoe and "|cffffaa00AoE mode|r" or "|cff55ff55Single Target|r"
 end
 
@@ -1663,9 +1810,11 @@ local pendingMode
 local pendingPlace   -- the switch's position, waiting for combat to end
 local function PushMode()
 	local aoe = VoidSequencerDB and VoidSequencerDB.aoe and true or false
-	toggle:SetText(modeLabel(aoe))
+	local pvp = VoidSequencerDB and VoidSequencerDB.pvp and btn:GetAttribute("haspvp") and true or false
+	toggle:SetText(modeLabel(aoe, pvp))
 	if InCombatLockdown() then pendingMode = true return aoe end
 	btn:SetAttribute("aoe", aoe)
+	btn:SetAttribute("pvp", pvp)
 	return aoe
 end
 -- Restore the key to whatever was bound there BEFORE VoidSequencer grabbed it
@@ -1715,8 +1864,9 @@ toggle:RegisterForClicks("LeftButtonUp")
 toggle:SetText(modeLabel(false))
 toggle:HookScript("PostClick", function(self)
 	local aoe = btn:GetAttribute("aoe") and true or false
-	self:SetText(modeLabel(aoe))
-	if VoidSequencerDB then VoidSequencerDB.aoe = aoe end
+	local pvp = btn:GetAttribute("pvp") and true or false
+	self:SetText(modeLabel(aoe, pvp))
+	if VoidSequencerDB then VoidSequencerDB.aoe, VoidSequencerDB.pvp = aoe, pvp end
 end)
 toggle:SetMovable(true)
 toggle:SetClampedToScreen(true)
@@ -2734,6 +2884,19 @@ function VS.Apply()
 end
 -- Current spec name (for the options-panel header).
 function VS.CurrentSpec() return currentSpec end
+-- For the rotation test (RotationTest.lua): spec ID, hero tree, spell check, rotation rev.
+function VS.CurrentSpecID() return currentSpecID end
+VS.ActiveHero = activeHeroName
+VS.SpellKnown = spellKnown
+function VS.RotationRev()
+	local d = DEFAULTS[currentSpec]
+	return d and d.rev or 0, d and d.gen and true or false
+end
+-- The shipped steps for a mode (read-only; VS.Defaults resets to them).
+function VS.DefaultSteps(mode)
+	local d = specDefaults()
+	return d and (mode == "AOE" and d.aoe or d.st) or {}
+end
 -- Modifier ability assignments (ALT/CTRL/SHIFT -> ability), edited by the panel.
 function VS.GetMod(mod) return (VoidSequencerDB.mods and VoidSequencerDB.mods[mod]) or "" end
 function VS.SetMod(mod, spell)
@@ -2780,11 +2943,12 @@ local function ApplySpec()
 		db.specStash = db.specStash or {}
 		if db.seededSpec and db.seededSpec ~= currentSpec and db.seqST then
 			db.specStash[db.seededSpec] = { st = db.seqST, aoe = db.seqAOE, mods = db.mods,
-				aoeMode = db.aoe, ver = db.defaultsVer, rev = db.seededRev }
+				aoeMode = db.aoe, pvpMode = db.pvp, ver = db.defaultsVer, rev = db.seededRev }
 		end
 		local saved = db.seededSpec ~= currentSpec and db.specStash[currentSpec]
 		if saved and saved.ver == DEFAULTS_VER and (saved.rev or 0) == (specDef.rev or 0) and saved.st then
 			db.seqST, db.seqAOE, db.mods, db.aoe = saved.st, saved.aoe, saved.mods, saved.aoeMode
+			db.pvp = saved.pvpMode
 			db.seededSpec, db.defaultsVer, db.seededRev = currentSpec, DEFAULTS_VER, specDef.rev or 0
 		end
 		db.specStash[currentSpec] = nil   -- it's live in seqST/seqAOE now
@@ -2804,6 +2968,7 @@ local function ApplySpec()
 			local role = si and GetSpecializationRole and GetSpecializationRole(si)
 			local TANKS = { Guardian = true, Blood = true, Protection = true, Brewmaster = true, Vengeance = true }
 			VoidSequencerDB.aoe = (role == "TANK") or (TANKS[currentSpec] == true)
+			VoidSequencerDB.pvp = nil   -- a freshly seeded spec starts out of PvP mode
 			-- seed this spec's modifier assignments (ALT/CTRL/SHIFT -> ability); the
 			-- options-panel pickers edit these.
 			VoidSequencerDB.mods = {
@@ -2820,6 +2985,18 @@ local function ApplySpec()
 		if not VoidSequencerDB.seqAOE then VoidSequencerDB.seqAOE = { { "" } } end
 	end
 	LoadSequences()
+end
+
+-- Dev: /vsforever runs this class's WoW Forever rotation on a retail character (and back).
+SLASH_VSFOREVER1 = "/vsforever"
+SlashCmdList["VSFOREVER"] = function()
+	if not VoidSequencerDB then return end
+	if InCombatLockdown() then print("|cff9966ffVoidSequencer|r: leave combat first.") return end
+	VoidSequencerDB.testForever = (not VoidSequencerDB.testForever) or nil
+	ApplySpec()
+	PushMode()
+	print("|cff9966ffVoidSequencer|r: Forever test " .. (VoidSequencerDB.testForever
+		and ("|cff55ff55ON|r, running " .. tostring(currentSpec)) or "|cffff5555OFF|r"))
 end
 
 -- Pick the rotation for the current spec (nil = automatic: tuned, else your hero tree's).

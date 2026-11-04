@@ -1,5 +1,10 @@
 # VoidSequencer Changelog
 
+## 1.0.5 (Beta) — 2026-11-03
+
+- **Test my rotation.** A new button in the options (or `/vstest`): hit a training dummy for 2-3 minutes and see each spell's casts per minute next to the top players' for your spec and hero tree, with what the game refused (out of range, not ready) and your damage per second. Copy the short report into our Discord to help tune the rotations. It reads only your own casts; the report never has your character name or realm. English game client for now.
+- **Feral (Druid of the Claw) rebuilt for single target:** four builders before every finisher (a cast sequence, so mashing can't skip one), and Incarnation / Berserk / Tiger's Fury lead every step. Before, single target skipped both big cooldowns on the Mythic+ build and spent finishers at 1-2 combo points.
+
 ## 1.0.4 (Beta) — 2026-11-02
 
 ### Changed
