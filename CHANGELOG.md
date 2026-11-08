@@ -1,5 +1,9 @@
 # VoidSequencer Changelog
 
+## 1.0.9 (Beta) — 2026-11-08
+
+- **WoW Forever rogue: the rotation key no longer puts you in Stealth.** Out of combat it used to cast Stealth first; now Stealth stays on your own key. When you are stealthed, the key still opens with Ambush or Cheap Shot, without an auto-attack swing breaking Stealth first.
+
 ## 1.0.8 (Beta) — 2026-11-08
 
 - **Put the rotation on the mouse wheel.** Set Keybind (in `/vseq`) now takes the mouse wheel up or down (each notch is one press), mouse buttons 3, 4 and 5 (the wheel click is 3), and Alt / Ctrl / Shift combinations, not only plain keys. A prompt shows while it waits, and the options name the binding the way the game does ("Mouse Wheel Down"). Thanks to 777marc for asking.

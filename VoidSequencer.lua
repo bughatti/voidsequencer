@@ -304,12 +304,12 @@ local DEFAULTS = {
 		cond = { ["Cheap Shot"] = "[stealth]", ["Sinister Strike"] = "[nostealth]", ["Blade Flurry"] = "[nostealth]",
 			["Blood Fury"] = "[harm,nodead]", ["Shank"] = "[nostealth]", ["Ambush"] = "[stealth]",
 			["Backstab"] = "[nostealth]" },
-		-- Out of combat and not stealthed, key 1 enters Stealth (user, 2026-11-01: one key
-		-- to stealth, target, open). Replaces /startattack, which would break Stealth; Cheap
-		-- Shot and Sinister Strike start auto-attack themselves. [nomounted]: never dismounts.
-		-- Only once Cheap Shot is learned (opener); before that it's plain /startattack.
-		-- No /startattack with it: it doesn't fit under 255 chars and would break Stealth.
-		macroHead = "/cast [nocombat,nostealth,nomounted]Stealth\n",
+		-- Key 1 no longer enters Stealth (user, 2026-11-08: "take stealth off my rotation";
+		-- it had since 2026-11-01). Stealth is the player's own key now. /startattack only
+		-- when not stealthed: in Stealth the press still opens (Ambush / Cheap Shot) without
+		-- an auto-attack swing breaking Stealth first. Only once an opener is learned;
+		-- before that it's plain /startattack (and the [nostealth] guards come off).
+		macroHead = "/startattack [nostealth]\n",
 		-- Test 2026-11-01 (retail orc): a press out of range tried Sinister Strike, which arms
 		-- auto-attack; the next press stealthed, and the first swing on arrival broke Stealth
 		-- before Cheap Shot. While stealthed, cancel any pending auto-attack.
@@ -1631,10 +1631,10 @@ local function loadTable(name, seq, numVar, lines, noAttack, fallback)
 	if #kept == 0 then   -- nothing known (spellbook not loaded yet): the full list as-is
 		for i = 1, #seq do kept[i] = (stepToMacro(seq[i])) end
 	end
-	-- A spec's macroHead replaces the /startattack line (FOREVER_ROGUE: Stealth out of
-	-- combat; a /startattack there would break Stealth before the [stealth] opener ran).
+	-- A spec's macroHead replaces the /startattack line (FOREVER_ROGUE: /startattack only
+	-- when not stealthed; a swing would break Stealth before the [stealth] opener ran).
 	-- Until the spec's opener is learned (Cheap Shot, level 26) there's nothing to open
-	-- with: no auto-Stealth, and the [nostealth] guard comes off so key 1 attacks from
+	-- with: plain /startattack, and the [nostealth] guard comes off so key 1 attacks from
 	-- Stealth instead of doing nothing.
 	local dSpec = DEFAULTS[currentSpec]
 	local attack, noGuard, tail = "/startattack\n", false, ""
