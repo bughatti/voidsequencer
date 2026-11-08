@@ -1,5 +1,9 @@
 # VoidSequencer Changelog
 
+## 1.0.7 (Beta) — 2026-11-07
+
+- **WoW Forever rogue: no more getting stuck on a finisher.** When both Sinister Strikes were dodged or parried, the rotation reached Slice and Dice with no combo points and stayed there ("That ability requires combo points") until you changed target, which on a boss meant most of the fight. Key 1 now also throws a plain Sinister Strike regularly, so a combo point always comes and the finisher goes out. With swords and daggers.
+
 ## 1.0.6 (Beta) — 2026-11-07
 
 - **WoW Forever rogue with a dagger: Ambush, Backstab and Eviscerate.** From Stealth, key 1 opens with Ambush (Cheap Shot when it can't). In the fight the order is Backstab, Backstab, Slice and Dice, Backstab, Backstab, Eviscerate (the sword order with Backstab in it); when you're in front, Sinister Strike, Sinister Strike, Eviscerate runs instead, so you still build and finish. With a sword nothing changes, and a weapon swap switches the rotation.

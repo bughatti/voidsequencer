@@ -298,7 +298,8 @@ local DEFAULTS = {
 		-- Backstab step; see DAGGER_OPEN. Without a dagger nothing changes ([nodagger] lines).
 		-- rev 7: the dagger order keeps Slice and Dice, like the guides (see DAGGER_OPEN).
 		-- rev 8: a dagger-only plain Sinister Strike step (zero-combo-point stall, see st).
-		rev = 8,
+		-- rev 9: that step for swords too (the same stall, measured on a boss, see st).
+		rev = 9,
 		mods = {},
 		cond = { ["Cheap Shot"] = "[stealth]", ["Sinister Strike"] = "[nostealth]", ["Blade Flurry"] = "[nostealth]",
 			["Blood Fury"] = "[harm,nodead]", ["Shank"] = "[nostealth]", ["Ambush"] = "[stealth]",
@@ -317,12 +318,17 @@ local DEFAULTS = {
 		-- "[dagger]Sinister Strike" step (Astra review, 2026-11-07): the two dagger orders share
 		-- combo points, so the in-front order can sit on Eviscerate at 0 points while Backstab
 		-- can't land from the front: nothing would build until a new target. A plain
-		-- Sinister Strike press always builds one. Without a dagger the step is left out.
+		-- Sinister Strike press always builds one.
+		-- rev 9 (BFD combat log, 2026-11-07): swords stall the same way. A castsequence advances
+		-- on a cast that lands even when it's dodged or parried (no combo point), so two missed
+		-- strikes reach Slice and Dice at 0 points; on a boss the target never changes, so it
+		-- sat there: Old Serra'kis, 110 "requires combo points" in 54 s, 7 casts. 262 such
+		-- failed presses in the run. Shank gives no combo point. So the plain step is for both.
 		st = {
 			{ "Ambush", "Cheap Shot", "[nodagger]" .. FOREVER_ROGUE_OPEN, "[dagger]" .. DAGGER_OPEN },
 			{ "Riposte", "[nodagger]" .. FOREVER_ROGUE_CORE, "[dagger]" .. DAGGER_CORE, "[dagger]" .. DAGGER_FRONT },
 			{ "Shank" },
-			{ "[dagger]Sinister Strike" },
+			{ "Sinister Strike" },
 		},
 		aoe = {
 			{ "Ambush", "Cheap Shot", "[nodagger]" .. FOREVER_ROGUE_OPEN, "[dagger]" .. DAGGER_OPEN },
@@ -330,7 +336,7 @@ local DEFAULTS = {
 			{ "Ambush", "Cheap Shot", "[nodagger]" .. FOREVER_ROGUE_OPEN, "[dagger]" .. DAGGER_OPEN },
 			{ "Riposte", "[nodagger]" .. FOREVER_ROGUE_CORE, "[dagger]" .. DAGGER_CORE, "[dagger]" .. DAGGER_FRONT },
 			{ "Shank" },
-			{ "[dagger]Sinister Strike" },
+			{ "Sinister Strike" },
 		},
 		-- World PvP (third position on the switch, user 2026-11-01). Every other press is a
 		-- plain Sinister Strike (Riposte first when it's up), so spending combo points by
