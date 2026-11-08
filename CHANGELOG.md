@@ -1,5 +1,9 @@
 # VoidSequencer Changelog
 
+## 1.0.8 (Beta) — 2026-11-08
+
+- **Put the rotation on the mouse wheel.** Set Keybind (in `/vseq`) now takes the mouse wheel up or down (each notch is one press), mouse buttons 3, 4 and 5 (the wheel click is 3), and Alt / Ctrl / Shift combinations, not only plain keys. A prompt shows while it waits, and the options name the binding the way the game does ("Mouse Wheel Down"). Thanks to 777marc for asking.
+
 ## 1.0.7 (Beta) — 2026-11-07
 
 - **WoW Forever rogue: no more getting stuck on a finisher.** When both Sinister Strikes were dodged or parried, the rotation reached Slice and Dice with no combo points and stayed there ("That ability requires combo points") until you changed target, which on a boss meant most of the fight. Key 1 now also throws a plain Sinister Strike regularly, so a combo point always comes and the finisher goes out. With swords and daggers.

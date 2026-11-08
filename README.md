@@ -31,6 +31,7 @@ VoidSequencer puts your spec's rotation on a single key. Every spec and every he
 
 ### Your Key, Your Call
 - **Enable toggle** — switch it off and key 1 goes back to whatever you had bound there.
+- **Any key or the mouse wheel** — Set Keybind takes a key, the mouse wheel (up or down: each notch is one press), mouse buttons 3-5, or an Alt / Ctrl / Shift combination.
 - **Rotation editor** — change any step with a spell picker. No macro syntax.
 - **Modifier casts** — hold Alt, Ctrl or Shift while pressing your key to fire a spell you choose (a cooldown, a defensive, an external).
 - **Rotation check** — shows how many of the rotation's spells you have, like "6 of 9 spells, the rest join as you learn them".

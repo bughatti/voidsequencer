@@ -556,7 +556,9 @@ StaticPopupDialogs["VOIDSEQ_MODCUSTOM"] = {
 -- ---------------------------------------------------------------------------
 local function RefreshOptions()
 	local k = VS.GetKey and VS.GetKey()
-	kbCurrent:SetText(k and ("|cff55ff55" .. k .. "|r") or "|cffff5555unbound|r")
+	-- the game's own name for it ("Mouse Wheel Up", "Shift-1"), not the raw binding key
+	local shown = k and ((GetBindingText and GetBindingText(k)) or k)
+	kbCurrent:SetText(shown and ("|cff55ff55" .. shown .. "|r") or "|cffff5555unbound|r")
 	if VS.GetEnabled then enableCB:SetChecked(VS.GetEnabled()) end
 
 	if VS.GetPacer then pacerCB:SetChecked(VS.GetPacer()) end

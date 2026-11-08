@@ -2047,16 +2047,46 @@ end)
 toggle:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
 -- key-capture overlay, triggered by the options panel's "Set Keybind" button.
+-- Keys, the mouse wheel and mouse buttons 3-5, with Alt / Ctrl / Shift (a CurseForge
+-- request, 2026-11-01: "so i can use the mousewheel" -- each wheel notch is one press).
+-- Left and right click are never taken: the UI needs them.
 local capture = CreateFrame("Frame", nil, UIParent)
 capture:SetAllPoints(UIParent)
 capture:EnableKeyboard(true)
+capture:EnableMouse(true)
+capture:EnableMouseWheel(true)
 capture:SetFrameStrata("FULLSCREEN_DIALOG")
 capture:Hide()
+do
+	local bg = capture:CreateTexture(nil, "BACKGROUND")
+	bg:SetAllPoints()
+	bg:SetColorTexture(0, 0, 0, 0.35)
+	local msg = capture:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
+	msg:SetPoint("CENTER", 0, 80)
+	msg:SetText("|cffcc66ffVoidSequencer|r: press the key for your rotation\n"
+		.. "|cffaaaaaa(a key, the mouse wheel up or down, or mouse button 3, 4 or 5;\n"
+		.. "Alt / Ctrl / Shift combinations work too. Esc cancels.)|r")
+end
+local function withMods(key)
+	return (IsAltKeyDown() and "ALT-" or "") .. (IsControlKeyDown() and "CTRL-" or "")
+		.. (IsShiftKeyDown() and "SHIFT-" or "") .. key
+end
 capture:SetScript("OnKeyDown", function(self, key)
 	if key == "LSHIFT" or key == "RSHIFT" or key == "LCTRL" or key == "RCTRL"
 		or key == "LALT" or key == "RALT" or key == "UNKNOWN" then return end
 	self:Hide()
-	if key ~= "ESCAPE" then VS.SetKey(key) end
+	if key ~= "ESCAPE" then VS.SetKey(withMods(key)) end
+end)
+capture:SetScript("OnMouseWheel", function(self, delta)
+	self:Hide()
+	VS.SetKey(withMods(delta > 0 and "MOUSEWHEELUP" or "MOUSEWHEELDOWN"))
+end)
+local MOUSE = { MiddleButton = "BUTTON3", Button4 = "BUTTON4", Button5 = "BUTTON5" }
+capture:SetScript("OnMouseDown", function(self, button)
+	local key = MOUSE[button]
+	if not key then return end   -- left / right click: keep waiting
+	self:Hide()
+	VS.SetKey(withMods(key))
 end)
 
 -- ---- Shared API for sibling files (Minimap.lua / Options.lua) ----
