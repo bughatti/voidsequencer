@@ -1,5 +1,13 @@
 # VoidSequencer Changelog
 
+## 1.0.6 (Beta) — 2026-11-07
+
+- **WoW Forever rogue with a dagger: Ambush, Backstab and Eviscerate.** From Stealth, key 1 opens with Ambush (Cheap Shot when it can't). In the fight the order is Backstab, Backstab, Slice and Dice, Backstab, Backstab, Eviscerate (the sword order with Backstab in it); when you're in front, Sinister Strike, Sinister Strike, Eviscerate runs instead, so you still build and finish. With a sword nothing changes, and a weapon swap switches the rotation.
+- **WoW Forever rogue: Shank** (the level-24 off-hand strike: 5 Energy, gives 15 back, can't miss) is in all three modes, on its own step so its cooldown never blocks the rest.
+- **WoW Forever talents:** the talent picker offers a build for your class on Forever too (the rogue's Combat leveling build), laid onto your current talents node by node.
+- **Settings asked for in combat open when combat ends** instead of failing.
+- **Safer after a /reload mid-fight:** all of key 1's setup runs while the UI loads, before the game's combat lock; if it ever loads under the lock, it finishes the moment combat ends instead of staying dead.
+
 ## 1.0.5 (Beta) — 2026-11-03
 
 - **Test my rotation.** A new button in the options (or `/vstest`): hit a training dummy for 2-3 minutes and see each spell's casts per minute next to the top players' for your spec and hero tree, with what the game refused (out of range, not ready) and your damage per second. Copy the short report into our Discord to help tune the rotations. It reads only your own casts; the report never has your character name or realm. English game client for now.

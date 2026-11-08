@@ -78,11 +78,27 @@ local CONDITIONALS = {
 -- dagger, the usual Outlaw axe + dagger), so these lines are left out of the macro
 -- while the main hand is a dagger; PLAYER_EQUIPMENT_CHANGED rebuilds.
 local NO_DAGGER_MH = { ["Blade Rush"] = true }
+-- The other way round: spells that need a dagger in the MAIN hand. Left out of the macro
+-- unless the main hand is a dagger (same rebuild on a weapon swap). Retail's rotations
+-- write Backstab as a raw castsequence line, which this list doesn't touch.
+-- (Ambush needs a dagger only on WoW Forever; retail Ambush takes any melee weapon.)
+local DAGGER_MH_ONLY = ((select(4, GetBuildInfo()) or 0) < 100000) and { ["Ambush"] = true, ["Backstab"] = true }
+	or { ["Backstab"] = true }
 local function MainHandIsDagger()
 	local id = GetInventoryItemID("player", INVSLOT_MAINHAND or 16)
 	if not id then return false end
 	local _, _, _, _, _, classID, subClassID = C_Item.GetItemInfoInstant(id)
 	return classID == Enum.ItemClass.Weapon and subClassID == Enum.ItemWeaponSubclass.Dagger
+end
+-- A step line tagged "[dagger]..." is used only with a dagger in the main hand,
+-- "[nodagger]..." only without one; returns the line without its tag, or nil to skip it.
+-- (Plain text so the editor, the rotation check and the test keep working.)
+local function untag(sp)
+	if type(sp) ~= "string" then return sp end
+	local tag, rest = sp:match("^%[(n?o?dagger)%](.*)$")
+	if not tag then return sp end
+	if (tag == "dagger") ~= MainHandIsDagger() then return nil end
+	return rest
 end
 
 -- Per-spec defaults, keyed by the spec NAME from GetSpecializationInfo
@@ -155,6 +171,20 @@ local FOREVER_ROGUE_PVP = "/castsequence reset=target/combat Sinister Strike, Si
 local FOREVER_ROGUE_OPEN = "/castsequence reset=target/combat Sinister Strike, Sinister Strike, Slice and Dice, "
 	.. "Sinister Strike, Sinister Strike, Eviscerate"
 local FOREVER_ROGUE_CORE = FOREVER_ROGUE_OPEN:gsub("^/castsequence ", "/castsequence [nostealth] ")
+-- Dagger main hand (rev 6, 2026-11-07): Backstab x3 -> Eviscerate. Trash died before the
+-- sword order reached its 6th cast, so no Eviscerate at all in a dungeon (combat log);
+-- Slice and Dice is out, Eviscerate comes on the 4th strike. A Backstab from in front fails
+-- and the order waits there, so the fight step carries a second, Sinister Strike order:
+-- a failed line doesn't stop the press (combat log: the next line is tried on the same
+-- frame), so in front Sinister Strike x2 -> Eviscerate advances instead. Behind, the
+-- Backstab order casts and the other line just meets the GCD (no advance).
+-- rev 7: the Forever guides (Method, Warcraft Tavern) keep Slice and Dice up and Eviscerate
+-- at 3-5 combo points, so the dagger order mirrors the sword one with Backstab in Sinister
+-- Strike's place. The in-front line resets on target only (shorter: the fight step has to
+-- stay under 255 characters with both orders in it).
+local DAGGER_OPEN = "/castsequence reset=target/combat Backstab, Backstab, Slice and Dice, Backstab, Backstab, Eviscerate"
+local DAGGER_CORE = "/castsequence [nostealth] reset=target/combat Backstab, Backstab, Slice and Dice, Backstab, Backstab, Eviscerate"
+local DAGGER_FRONT = "/castsequence [nostealth] reset=target Sinister Strike, Sinister Strike, Eviscerate"
 -- Assassination / Subtlety cores (see their rev 1 notes). Keep each macro under 255 chars.
 local ASSA_CORE = "/castsequence reset=combat Garrote, Mutilate, Mutilate, Rupture, Mutilate, Mutilate, Envenom, "
 	.. "Mutilate, Mutilate, Envenom, Mutilate, Mutilate, Envenom"
@@ -235,7 +265,7 @@ local DEFAULTS = {
 	},
 	-- WoW Forever Rogue, leveling 1-60 with swords (Combat). From the Forever leveling guides
 	-- (Oct 2026): Sinister Strike builds, Slice and Dice is kept up, Eviscerate finishes,
-	-- Riposte when it procs, Blade Flurry for packs. Ambush needs a dagger, so it's out.
+	-- Riposte when it procs, Blade Flurry for packs. With a dagger main hand: Ambush opens, Backstab (rev 5).
 	-- A macro can't see combo points, so the castsequence paces them: SnD at 2, Eviscerate
 	-- at 4. It only advances on a cast that lands, so mashing can't skip ahead, and
 	-- reset=target/combat starts it over on a new target or fight (no stalling on a
@@ -253,10 +283,26 @@ local DEFAULTS = {
 		-- rev 2 (2026-11-01, retail test): opener steps use the unguarded core + /stopattack
 		-- tail; re-seeds saved copies that still carry the longer guarded opener step.
 		-- rev 3: shorter castsequence (Eviscerate after 4 strikes).
-		rev = 3,
+		-- rev 4 (2026-11-07): Shank, Forever's level-24 off-hand strike (5 Energy, gives 15
+		-- back, 10 s cooldown, can't miss): free damage + energy, so on cooldown. Whether it's on
+		-- the GCD isn't documented, so it gets its own step like Blade Flurry (works either way:
+		-- on cooldown that press does nothing and the next one carries on). Spells you don't
+		-- know are trimmed, so below 24 it's skipped.
+		-- rev 5 (2026-11-07, the user plays a DAGGER main hand and works to stay behind):
+		-- Ambush opens from Stealth (before Cheap Shot), Backstab gets its own step like
+		-- Shank (from behind it lands; in front that press does nothing and the next one
+		-- carries on). Both are left out without a dagger in the main hand (DAGGER_MH_ONLY),
+		-- and a weapon swap rebuilds, so a sword goes back to Sinister Strike + Cheap Shot.
+		-- rev 6 (2026-11-07): with a dagger, the strike order is Backstab x3 -> Eviscerate
+		-- (+ a Sinister Strike order for when you're in front), replacing the separate
+		-- Backstab step; see DAGGER_OPEN. Without a dagger nothing changes ([nodagger] lines).
+		-- rev 7: the dagger order keeps Slice and Dice, like the guides (see DAGGER_OPEN).
+		-- rev 8: a dagger-only plain Sinister Strike step (zero-combo-point stall, see st).
+		rev = 8,
 		mods = {},
 		cond = { ["Cheap Shot"] = "[stealth]", ["Sinister Strike"] = "[nostealth]", ["Blade Flurry"] = "[nostealth]",
-			["Blood Fury"] = "[harm,nodead]" },
+			["Blood Fury"] = "[harm,nodead]", ["Shank"] = "[nostealth]", ["Ambush"] = "[stealth]",
+			["Backstab"] = "[nostealth]" },
 		-- Out of combat and not stealthed, key 1 enters Stealth (user, 2026-11-01: one key
 		-- to stealth, target, open). Replaces /startattack, which would break Stealth; Cheap
 		-- Shot and Sinister Strike start auto-attack themselves. [nomounted]: never dismounts.
@@ -267,16 +313,24 @@ local DEFAULTS = {
 		-- auto-attack; the next press stealthed, and the first swing on arrival broke Stealth
 		-- before Cheap Shot. While stealthed, cancel any pending auto-attack.
 		macroTail = "/stopattack [stealth]",
-		opener = "Cheap Shot",
+		opener = { "Ambush", "Cheap Shot" },
+		-- "[dagger]Sinister Strike" step (Astra review, 2026-11-07): the two dagger orders share
+		-- combo points, so the in-front order can sit on Eviscerate at 0 points while Backstab
+		-- can't land from the front: nothing would build until a new target. A plain
+		-- Sinister Strike press always builds one. Without a dagger the step is left out.
 		st = {
-			{ "Cheap Shot", FOREVER_ROGUE_OPEN },
-			{ "Riposte", FOREVER_ROGUE_CORE },
+			{ "Ambush", "Cheap Shot", "[nodagger]" .. FOREVER_ROGUE_OPEN, "[dagger]" .. DAGGER_OPEN },
+			{ "Riposte", "[nodagger]" .. FOREVER_ROGUE_CORE, "[dagger]" .. DAGGER_CORE, "[dagger]" .. DAGGER_FRONT },
+			{ "Shank" },
+			{ "[dagger]Sinister Strike" },
 		},
 		aoe = {
-			{ "Cheap Shot", FOREVER_ROGUE_OPEN },
+			{ "Ambush", "Cheap Shot", "[nodagger]" .. FOREVER_ROGUE_OPEN, "[dagger]" .. DAGGER_OPEN },
 			{ "Blade Flurry" },
-			{ "Cheap Shot", FOREVER_ROGUE_OPEN },
-			{ "Riposte", FOREVER_ROGUE_CORE },
+			{ "Ambush", "Cheap Shot", "[nodagger]" .. FOREVER_ROGUE_OPEN, "[dagger]" .. DAGGER_OPEN },
+			{ "Riposte", "[nodagger]" .. FOREVER_ROGUE_CORE, "[dagger]" .. DAGGER_CORE, "[dagger]" .. DAGGER_FRONT },
+			{ "Shank" },
+			{ "[dagger]Sinister Strike" },
 		},
 		-- World PvP (third position on the switch, user 2026-11-01). Every other press is a
 		-- plain Sinister Strike (Riposte first when it's up), so spending combo points by
@@ -292,6 +346,42 @@ local DEFAULTS = {
 		pvp = {
 			{ "Blood Fury", "Cheap Shot", FOREVER_ROGUE_PVP },
 			{ "Blood Fury", "Riposte", "Sinister Strike" },
+			{ "Backstab" },
+			{ "Shank" },
+		},
+		-- Talents (2026-11-05). Forever's trees are reworked (not Classic's), and there are no
+		-- top players to copy yet, so this is built from what each talent does for a sword
+		-- Sinister Strike -> Eviscerate leveler on a PvP realm. Node IDs and ranks are from
+		-- Blizzard's API (talent-tree 1111, namespace static-forever-us), in BUY ORDER: the
+		-- stager buys down the list, so the first points go to the top rows. A node list,
+		-- not an import string: writing a Forever string offline would mean guessing the
+		-- client's node order. Assumes 5 points per row like Classic; the stager skips
+		-- anything still gated and comes back to it on the next pick.
+		builds = {
+			-- Works with any weapon: the rotation is Sinister Strike (any weapon), and Hack and
+			-- Slash pays out per weapon type (user isn't trained in swords, 2026-11-05).
+			{ name = "Combat (leveling + world PvP)", build = {
+				{ 105741, 2 },   -- Efficient Strikes: Sinister Strike -5 energy
+				{ 105708, 3 },   -- Coup de Grace: Eviscerate +20%
+				{ 105737, 3 },   -- Precision: +3% hit (dual wield misses a lot)
+				{ 105738, 3 },   -- Deflection: +6% parry, opens Riposte
+				{ 105735, 1 },   -- Riposte (key 1, every mode: fires after a parry)
+				{ 105736, 2 },   -- Endurance: Sprint / Evasion cooldown -60%
+				{ 105732, 2 },   -- Improved Sprint: Sprint clears roots and slows
+				{ 105730, 3 },   -- Aggression: Sinister Strike + Eviscerate +15%
+				{ 105726, 2 },   -- Weapon Expertise: -2% dodged / parried
+				{ 105728, 1 },   -- Blade Flurry (AoE mode)
+				{ 105727, 5 },   -- Hack and Slash: sword/axe extra attack, dagger/fist +5% crit, mace armor pen
+				{ 105740, 3 },   -- Flash of Steel (row 6, needed for row 7)
+				{ 105724, 1 },   -- Adrenaline Rush (Shift-6)
+				{ 105740, 5 },   -- Flash of Steel, rest
+				{ 113635, 2 },   -- Dual Wield Specialization: off-hand +50%
+				{ 105733, 2 },   -- Improved Kick: Kick silences 2 s
+				{ 108100, 1 },   -- Flawless Execution: Eviscerate -15 energy
+				{ 113398, 5 },   -- Lightning Reflexes: +5% dodge
+				{ 105722, 5 },   -- Malice (Assassination): +5% crit
+				{ 105721, 3 },   -- Ruthlessness: finishers may add a combo point
+			} },
 		},
 	},
 	-- Unholy DK. Built to match how the top Unholy DKs actually play it -- their cast
@@ -1383,9 +1473,14 @@ local function stepToMacro(step)
 	local lines = {}
 	local daggerMH = MainHandIsDagger()
 	local firstHeal
-	for _, spell in ipairs(step) do
-		if daggerMH and NO_DAGGER_MH[spell] then
+	for _, tagged in ipairs(step) do
+		local spell = untag(tagged)
+		if spell == nil then
+			-- left out: tagged for the other kind of main hand ([dagger] / [nodagger])
+		elseif daggerMH and NO_DAGGER_MH[spell] then
 			-- left out: fails with a dagger in the main hand
+		elseif not daggerMH and DAGGER_MH_ONLY[spell] then
+			-- left out: needs a dagger in the main hand (Ambush, Backstab)
 		elseif spell and spell:sub(1, 1) == "/" then
 			-- Raw macro line (e.g. "/castsequence reset=combat Seal of X, Judgement"):
 			-- passed through as-is, for things a plain /cast list can't express
@@ -1469,10 +1564,35 @@ local btn = CreateFrame("Button", "VoidSeqButton", nil, "SecureActionButtonTempl
 -- Register BOTH up and down: depending on the cast-on-key-down/up cvar, the
 -- protected cast fires on the up event. Registering only Down ran the macro
 -- (/startattack) but never delivered the cast. A "stepped" gate in the snippet
--- prevents the down+up pair from double-advancing.
-btn:RegisterForClicks("AnyUp", "AnyDown")
-btn:SetAttribute("type", "macro")
-btn:SetAttribute("step", 1)
+-- prevents the down+up pair from double-advancing. (RegisterForClicks is in the
+-- whenSecure step below.)
+-- A /reload in the middle of a fight runs this file under combat lockdown, where every
+-- secure setup step below is blocked: attributes, WrapScript, frame refs and state
+-- drivers all go through protected attribute sets (ADDON_ACTION_BLOCKED here, seen
+-- 2026-11-07 in a dungeon) and key 1 stayed dead all session. whenSecure runs a setup
+-- step now, or in order the moment combat ends.
+local secureQueue
+local function whenSecure(fn)
+	if not InCombatLockdown() then fn() return end
+	if not secureQueue then
+		secureQueue = {}
+		local w = CreateFrame("Frame")
+		w:RegisterEvent("PLAYER_REGEN_ENABLED")
+		w:SetScript("OnEvent", function(self)
+			self:UnregisterAllEvents()
+			local q = secureQueue
+			secureQueue = nil
+			for _, f in ipairs(q) do f() end
+			print("|cffcc66ffVoidSequencer|r: set up now that combat is over.")
+		end)
+	end
+	secureQueue[#secureQueue + 1] = fn
+end
+whenSecure(function()
+	btn:RegisterForClicks("AnyUp", "AnyDown")
+	btn:SetAttribute("type", "macro")
+	btn:SetAttribute("step", 1)
+end)
 
 -- Load steps into the SECURE environment using Lua LONG-STRING brackets
 -- ([=======[ ... ]=======]). Long strings preserve real
@@ -1512,8 +1632,18 @@ local function loadTable(name, seq, numVar, lines, noAttack, fallback)
 	-- Stealth instead of doing nothing.
 	local dSpec = DEFAULTS[currentSpec]
 	local attack, noGuard, tail = "/startattack\n", false, ""
+	-- opener: one spell or a list (any of them ready counts); a dagger-only one (Ambush)
+	-- counts only with a dagger in the main hand
+	local function openerReady(o)
+		if type(o) == "table" then
+			for _, s in ipairs(o) do if openerReady(s) then return true end end
+			return false
+		end
+		if DAGGER_MH_ONLY[o] and not MainHandIsDagger() then return false end
+		return knownForMacro(o)
+	end
 	if dSpec and dSpec.macroHead then
-		if not dSpec.opener or knownForMacro(dSpec.opener) then
+		if not dSpec.opener or openerReady(dSpec.opener) then
 			attack = dSpec.macroHead
 			-- Last line, so if a macro ever runs long capMacro drops this one first.
 			if dSpec.macroTail then tail = "\n" .. dSpec.macroTail end
@@ -1572,7 +1702,7 @@ end
 -- Pre-click secure snippet: set this press's macro from the secure table, then
 -- advance. The "stepped" gate stops the down+up pair from double-advancing,
 -- while leaving the macro set for whichever event the cast-key cvar fires on.
-btn:WrapScript(btn, "OnClick", [[
+whenSecure(function() btn:WrapScript(btn, "OnClick", [[
 	if self:GetAttribute("stepped") then
 		self:SetAttribute("stepped", false)
 		return
@@ -1619,14 +1749,14 @@ btn:WrapScript(btn, "OnClick", [[
 	step = step + 1
 	if step > n then step = 1 end
 	self:SetAttribute("step", step)
-]])
+]]) end)
 
 -- [channeling] state driver: sets btn's SECURE "vschan" attribute to "1" while
 -- channeling, "0" otherwise, updated by the game even in combat. Read by the
 -- OnClick gate above so spamming through a channel doesn't burn/skip steps.
 -- State drivers are the canonical secure mechanism -- no taint, no insecure
 -- clock feeding the button (that was the blocked path). Registered out of combat.
-RegisterStateDriver(btn, "vschan", "[channeling] 1; 0")
+whenSecure(function() RegisterStateDriver(btn, "vschan", "[channeling] 1; 0") end)
 
 -- ---------------------------------------------------------------------------
 -- ST/AoE mode toggle. A clickable SECURE handler button that flips the "aoe"
@@ -1634,6 +1764,7 @@ RegisterStateDriver(btn, "vschan", "[channeling] 1; 0")
 -- snippet manipulating a ref'd frame's attribute). NOT a held modifier.
 -- ---------------------------------------------------------------------------
 local toggle = CreateFrame("Button", "VoidSeqToggle", UIParent, "SecureHandlerBaseTemplate,UIPanelButtonTemplate")
+whenSecure(function()
 toggle:RegisterForClicks("AnyUp")
 SecureHandlerSetFrameRef(toggle, "seq", btn)
 SecureHandlerWrapScript(toggle, "OnClick", toggle, [[
@@ -1649,6 +1780,7 @@ SecureHandlerWrapScript(toggle, "OnClick", toggle, [[
 		seq:SetAttribute("aoe", true)
 	end
 ]])
+end)
 
 -- The button shows the mode you are CURRENTLY in (not the one it switches to).
 local function modeLabel(aoe, pvp)
@@ -1771,6 +1903,7 @@ local vehHandler = CreateFrame("Frame", "VoidSeqVehicle", UIParent, "SecureHandl
 -- ACTIONBUTTON1 would still fire the normal slot 1 ("can't attack while mounted").
 -- Then the key goes to VoidBars' own bar-1 button 1, which does page (attribute
 -- "voidbtn"). Seen in the VoidBars key log 2026-10-24.
+whenSecure(function()
 vehHandler:SetAttribute("_vsapply", [[
 	self:ClearBindings()
 	local key = self:GetAttribute("voidkey")
@@ -1791,6 +1924,7 @@ vehHandler:SetAttribute("_onstate-vehicle", [[ self:RunAttribute("_vsapply") ]])
 -- does nothing on the ground). On the ground with no target it stays the skyriding slot.
 RegisterStateDriver(vehHandler, "vehicle",
 	"[vehicleui][overridebar][possessbar] in; [bonusbar:5,flying] in; [bonusbar:5,harm,nodead] out; [bonusbar:5] in; out")
+end)
 
 -- Out of combat only. Re-runs the handler so a reload while already mounted (the
 -- state fired before the key was known) or a VoidBars takeover takes effect now.
@@ -1858,9 +1992,21 @@ end
 -- is gone; the keybind lives in the options panel now.) Left-click flips mode
 -- (secure, works in combat); right-click-drag repositions; position is saved.
 -- ---------------------------------------------------------------------------
-toggle:ClearAllPoints()
-toggle:SetSize(110, 22)
-toggle:RegisterForClicks("LeftButtonUp")
+-- (size, clicks, strata and level of a protected button: whenSecure, see above)
+whenSecure(function()
+	toggle:ClearAllPoints()
+	toggle:SetSize(110, 22)
+	toggle:RegisterForClicks("LeftButtonUp")
+	toggle:SetMovable(true)
+	toggle:SetClampedToScreen(true)
+	-- Above action bars: Blizzard's bottom bars re-laid out over it after a vehicle
+	-- (Kings' Rest), and VoidBars' pet bar later sat on top of it -- both left the
+	-- mode untouchable mid-run. MEDIUM strata with a high frame level, NOT "HIGH":
+	-- HIGH put it on top of the map, talents and other windows (2026-10-25).
+	toggle:SetFrameStrata("MEDIUM")
+	toggle:SetFrameLevel(60)
+	pacer:SetFrameLevel(toggle:GetFrameLevel() + 5)
+end)
 toggle:SetText(modeLabel(false))
 toggle:HookScript("PostClick", function(self)
 	local aoe = btn:GetAttribute("aoe") and true or false
@@ -1868,15 +2014,6 @@ toggle:HookScript("PostClick", function(self)
 	self:SetText(modeLabel(aoe, pvp))
 	if VoidSequencerDB then VoidSequencerDB.aoe, VoidSequencerDB.pvp = aoe, pvp end
 end)
-toggle:SetMovable(true)
-toggle:SetClampedToScreen(true)
--- Above action bars: Blizzard's bottom bars re-laid out over it after a vehicle
--- (Kings' Rest), and VoidBars' pet bar later sat on top of it -- both left the
--- mode untouchable mid-run. MEDIUM strata with a high frame level, NOT "HIGH":
--- HIGH put it on top of the map, talents and other windows (2026-10-25).
-toggle:SetFrameStrata("MEDIUM")
-toggle:SetFrameLevel(60)
-pacer:SetFrameLevel(toggle:GetFrameLevel() + 5)
 toggle:RegisterForDrag("RightButton")
 toggle:SetScript("OnDragStart", function(self)
 	if not InCombatLockdown() then self:StartMoving() end
@@ -2045,7 +2182,7 @@ end
 
 function VS.ImportBuild(str, name)
 	if InCombatLockdown() then print("|cffcc66ffVoidSequencer|r: leave combat to import talents.") return end
-	if type(str) ~= "string" or str == "" then print("|cffcc66ffVoidSequencer|r: no build string.") return end
+	if type(str) ~= "string" or str == "" then print("|cffcc66ffVoidSequencer|r: no build string (node builds can only be put on your current talents).") return end
 	if C_AddOns and C_AddOns.LoadAddOn then C_AddOns.LoadAddOn("Blizzard_PlayerSpells") end
 	if not (ClassTalentImportExportMixin and CreateFromMixins and C_ClassTalents and C_ClassTalents.GetActiveConfigID) then
 		print("|cffcc66ffVoidSequencer|r: talent import API not available.")
@@ -2068,8 +2205,9 @@ end
 -- are behind a gate you haven't reached) go on any open talent so none sit unspent; the
 -- next re-pick past the gate moves them back into the build. Hero talents are never
 -- refunded or switched; new hero points go into the hero tree you already picked.
--- Nothing is committed here: you open Talents and click Apply Changes (a clean Blizzard
--- click), so the live talent frame is never touched from addon code (see ImportBuild).
+-- Then VS.ApplyStaged commits it with C_ClassTalents.CommitConfig, the call behind
+-- Blizzard's Apply Changes (2026-11-05). The live talent frame is never touched from addon
+-- code (see ImportBuild): with Talents open, you click its Apply button yourself.
 local function decodeBuild(str)
 	if C_AddOns and C_AddOns.LoadAddOn then C_AddOns.LoadAddOn("Blizzard_PlayerSpells") end
 	if not (ClassTalentImportExportMixin and ExportUtil and C_ClassTalents and C_Traits) then
@@ -2090,6 +2228,20 @@ local function decodeBuild(str)
 	end
 	local content = imp:ReadLoadoutContent(stream, treeID)
 	return imp:ConvertToImportLoadoutEntryInfo(cfg, treeID, content), cfg, treeID
+end
+
+-- A build given as talent nodes instead of an import string (WoW Forever builds):
+-- { {nodeID, ranks}, ... } in buy order, ranks = the node's TOTAL at that point. A node can
+-- be listed twice (Flash of Steel to 3, Adrenaline Rush, then Flash of Steel to 5).
+local function nodeBuild(nodes)
+	if not (C_ClassTalents and C_ClassTalents.GetActiveConfigID and C_Traits) then
+		return nil, "talent API not available."
+	end
+	local cfg = C_ClassTalents.GetActiveConfigID()
+	local ci = cfg and C_Traits.GetConfigInfo(cfg)
+	local treeID = ci and ci.treeIDs and ci.treeIDs[1]
+	if not treeID then return nil, "no active talent config." end
+	return nodes, cfg, treeID
 end
 
 -- The hero tree a decoded build picks: name + subTreeID of its SubTreeSelection choice.
@@ -2114,16 +2266,28 @@ function VS.ValidateBuilds(force)
 	checkedSpecs[specID] = true
 	local bad = {}
 	for _, b in ipairs(VS.RecommendedBuilds and VS.RecommendedBuilds() or {}) do
-		local entries, cfg = decodeBuild(b.build or "")
-		local want = (b.name or ""):gsub("%s*%(.-%)%s*$", "")
-		if not entries then
-			bad[#bad + 1] = (b.name or "?") .. ": " .. tostring(cfg)
+		if type(b.build) == "table" then
+			-- node build (Forever): every node must be in this tree with enough ranks
+			local nodes, cfg = nodeBuild(b.build)
+			if not nodes then bad[#bad + 1] = (b.name or "?") .. ": " .. tostring(cfg) end
+			for _, e in ipairs(nodes or {}) do
+				local n = C_Traits.GetNodeInfo(cfg, e[1])
+				if not (n and n.ID and n.ID ~= 0 and (n.maxRanks or 0) >= (e[2] or 0)) then
+					bad[#bad + 1] = (b.name or "?") .. ": talent node " .. tostring(e[1]) .. " isn't in your tree"
+				end
+			end
 		else
-			local hero = buildHero(entries, cfg)
-			if not hero then
-				bad[#bad + 1] = (b.name or "?") .. ": no hero talent tree in the build"
-			elseif want ~= "" and hero ~= want then
-				bad[#bad + 1] = (b.name or "?") .. ": the build picks " .. hero
+			local entries, cfg = decodeBuild(b.build or "")
+			local want = (b.name or ""):gsub("%s*%(.-%)%s*$", "")
+			if not entries then
+				bad[#bad + 1] = (b.name or "?") .. ": " .. tostring(cfg)
+			else
+				local hero = buildHero(entries, cfg)
+				if not hero then
+					bad[#bad + 1] = (b.name or "?") .. ": no hero talent tree in the build"
+				elseif want ~= "" and hero ~= want then
+					bad[#bad + 1] = (b.name or "?") .. ": the build picks " .. hero
+				end
 			end
 		end
 	end
@@ -2154,7 +2318,9 @@ end
 function VS.StageBuild(str, label)
 	local P = "|cffcc66ffVoidSequencer|r: "
 	if InCombatLockdown() then print(P .. "leave combat to change talents.") return end
-	local entries, cfg, treeID = decodeBuild(str or "")
+	local isNodes = type(str) == "table"
+	local entries, cfg, treeID
+	if isNodes then entries, cfg, treeID = nodeBuild(str) else entries, cfg, treeID = decodeBuild(str or "") end
 	if not entries then print(P .. cfg) return end
 
 	-- 1) refund class + spec points (not hero), the same as the talent frame's Reset
@@ -2169,6 +2335,12 @@ function VS.StageBuild(str, label)
 	-- parent comes later in tree order still gets bought once the parent is in. Hero
 	-- talents: only adds points inside the hero tree you already picked, never switches it.
 	local want, order = {}, {}
+	-- Node builds: each line is its own target (buy the node up to that many ranks), kept
+	-- in list order, so a node listed twice fills in two steps.
+	if isNodes then
+		for _, e in ipairs(entries) do order[#order + 1] = { nodeID = e[1], ranks = e[2] or 0 } end
+		entries = {}
+	end
 	for _, e in ipairs(entries) do
 		local w = want[e.nodeID]
 		if not w then
@@ -2256,7 +2428,7 @@ function VS.StageBuild(str, label)
 
 	print(P .. "staged " .. (label or "the build") .. ": " .. fromBuild .. " talent pick(s) from the build"
 		.. (#filler > 0 and (", " .. #filler .. " spare point(s) on " .. table.concat(filler, ", ") .. " until the build can use them") or "")
-		.. ". Open Talents (N) and click |cffffd700Apply Changes|r.")
+		.. ".")
 	if heroNote == "picked" then
 		print(P .. "picked the build's hero talent tree and spent your hero points in it.")
 	elseif heroNote == "different" then
@@ -2288,8 +2460,75 @@ function VS.StageBuild(str, label)
 		if st and st.traitCurrencyID and c.traitCurrencyID == st.traitCurrencyID then heroLeft = c.quantity or 0 end
 	end
 	if left + heroLeft > 0 then
-		print(P .. ("%d class/spec and %d hero point(s) are still unspent -- spend them in Talents (N) before Apply."):format(left, heroLeft))
+		print(P .. ("%d class/spec and %d hero point(s) are still unspent -- spend them in Talents (N)."):format(left, heroLeft))
 	end
+	VS.ApplyStaged(cfg, label)
+end
+
+-- Apply what StageBuild laid on, like retail's "Switch to a build" does (user, 2026-11-05:
+-- picking a build should put it on, no trip to Talents). Same call as Blizzard's Apply
+-- Changes button (ClassTalentsFrameMixin:CommitConfigInternal), with your selected saved
+-- loadout so the change is saved there too. Never with the Talents window open: its own
+-- Apply button is right there, and we don't touch the live frame (see ImportBuild).
+local applyWatch = CreateFrame("Frame")
+applyWatch:SetScript("OnEvent", function(self, event, arg)
+	if arg ~= self.cfg and arg ~= self.saved then return end   -- another trait config (profession, etc.)
+	if event == "CONFIG_COMMIT_FAILED" then
+		print("|cffcc66ffVoidSequencer|r: the talent change failed (moved, or got interrupted?). Pick the build again.")
+	else
+		print("|cffcc66ffVoidSequencer|r: " .. (self.label or "build") .. " applied.")
+	end
+	self:UnregisterAllEvents()
+	self.token = (self.token or 0) + 1
+end)
+function VS.ApplyStaged(cfg, label)
+	local P = "|cffcc66ffVoidSequencer|r: "
+	label = label or "the build"
+	if not C_Traits.ConfigHasStagedChanges(cfg) then
+		print(P .. "your talents already match " .. label .. ".")
+		return
+	end
+	local tf = PlayerSpellsFrame and PlayerSpellsFrame.TalentsFrame
+	if tf and tf:IsVisible() then
+		print(P .. "staged " .. label .. " -- click |cffffd700Apply Changes|r in your Talents window.")
+		return
+	end
+	if C_ClassTalents.CanEditTalents then
+		local ok, err = C_ClassTalents.CanEditTalents()
+		if not ok then
+			print(P .. "talents can't change right now" .. ((err and err ~= "") and (": " .. err) or "")
+				.. ". Open Talents (N) and click |cffffd700Apply Changes|r when you can.")
+			return
+		end
+	end
+	-- the loadout selected in the dropdown (what Blizzard's Apply passes); none / the
+	-- starter build = apply to your current talents without saving to a loadout
+	local specID = PlayerUtil and PlayerUtil.GetCurrentSpecID and PlayerUtil.GetCurrentSpecID()
+	local saved = specID and C_ClassTalents.GetLastSelectedSavedConfigID and C_ClassTalents.GetLastSelectedSavedConfigID(specID)
+	local starter = Constants and Constants.TraitConsts and Constants.TraitConsts.STARTER_BUILD_TRAIT_CONFIG_ID
+	if saved and (saved == starter or not tContains(C_ClassTalents.GetConfigIDsBySpecID(specID) or {}, saved)) then
+		saved = nil
+	end
+	-- watch BEFORE committing: the result event can come before CommitConfig returns
+	applyWatch.cfg, applyWatch.saved, applyWatch.label = cfg, saved, label
+	applyWatch.token = (applyWatch.token or 0) + 1
+	local token = applyWatch.token
+	applyWatch:RegisterEvent("TRAIT_CONFIG_UPDATED")
+	applyWatch:RegisterEvent("CONFIG_COMMIT_FAILED")
+	if not C_ClassTalents.CommitConfig(saved) then
+		applyWatch:UnregisterAllEvents()
+		applyWatch.token = token + 1
+		print(P .. "the game wouldn't apply " .. label .. ". Open Talents (N) and click |cffffd700Apply Changes|r.")
+		return
+	end
+	if applyWatch.token ~= token then return end   -- already confirmed (or failed) during the call
+	C_Timer.After(20, function()
+		if applyWatch.token == token then
+			applyWatch:UnregisterAllEvents()
+			print(P .. "the talent change didn't confirm. Open Talents (N) to check.")
+		end
+	end)
+	print(P .. "applying " .. label .. " -- stand still for the cast.")
 end
 
 -- The recommended talent builds for the player's CURRENT spec: a list of
@@ -2318,8 +2557,10 @@ function VS.RecommendedBuilds()
 	local d = DEFAULTS[currentSpec]
 	return specBuilds(currentSpecID, d and not d.gen and currentSpec or nil)
 end
--- Builds for any spec of the player's class (for the switch menu).
+-- Builds for any spec of the player's class (for the switch menu). None in WoW Forever:
+-- its spec IDs reuse retail's (Assassination = 253), which would list retail builds.
 function VS.BuildsForSpec(specID, specName)
+	if IS_FOREVER then return {} end
 	return specBuilds(specID, specName)
 end
 
@@ -2560,9 +2801,8 @@ do
 	end)
 end
 
--- Stages the first build for the current spec onto your talents. Handy while leveling:
--- it works with the Talents window open (the options panel closes it), so it's
--- "/vsimport" then Apply Changes.
+-- Puts the first build for the current spec on your talents and applies it. Handy while
+-- leveling. With the Talents window open it only stages, and you click Apply Changes.
 SLASH_VSIMPORT1 = "/vsimport"
 SlashCmdList["VSIMPORT"] = function()
 	local b = VS.RecommendedBuilds()[1]
@@ -2653,7 +2893,8 @@ function VS.CheckRotation()
 		local prio = VoidSequencerDB.priority
 		for i, step in ipairs(seqOrPriority(mode) or {}) do
 			local any, real = false, false
-			for _, sp in ipairs(step) do
+			for _, tagged in ipairs(step) do
+				local sp = untag(tagged)   -- a line for the other main hand isn't loaded: skip it
 				if sp and sp ~= "" then
 					real = true
 					if sp:sub(1, 1) == "/" then
@@ -2713,6 +2954,8 @@ end
 -- Backstab (Subtlety) only works with a dagger in the MAIN hand; without one the
 -- castsequence waits on it forever and key 1 looks broken. Say so.
 function VS.DaggerWarning(r)
+	-- (WoW Forever's rogue leaves Backstab / Ambush out without a dagger: DAGGER_MH_ONLY)
+	if (select(4, GetBuildInfo()) or 0) < 100000 then return end
 	r = r or VS.CheckRotation()
 	if r.used and r.used["Backstab"] and not MainHandIsDagger() then
 		print("|cffcc66ffVoidSequencer|r: |cffff5555Backstab needs a dagger in your MAIN hand|r -- "
@@ -3116,7 +3359,7 @@ ev:SetScript("OnEvent", function(_, event, unit)
 					unspent = unspent + (c.quantity or 0)
 				end
 				if unspent > 0 then
-					print("|cffcc66ffVoidSequencer|r: " .. unspent .. " new talent point(s). Open Talents (N), type |cffffd700/vsimport|r, then Apply Changes ("
+					print("|cffcc66ffVoidSequencer|r: " .. unspent .. " new talent point(s). Type |cffffd700/vsimport|r to spend them ("
 						.. (b.name or "recommended build") .. ").")
 				end
 			end)
@@ -3132,7 +3375,7 @@ ev:SetScript("OnEvent", function(_, event, unit)
 		if newKey and VoidSequencerDB.enabled then
 			print("|cff00c7ffVoidSequencer|r is on key |cffffd7001|r. Change it in /vseq.")
 		end
-		VoidSequencerDB.log = nil   -- leftovers of removed debug logs
+		VoidSequencerDB.log, VoidSequencerDB.reloadTrace = nil, nil   -- leftovers of removed debug logs
 		if VoidSequencerCharDB then VoidSequencerCharDB.castlog, VoidSequencerCharDB.errlog = nil, nil end
 		-- Seed the sequences for the character's CURRENT spec (see ApplySpec). This
 		-- now also re-runs live on PLAYER_SPECIALIZATION_CHANGED, so swapping spec

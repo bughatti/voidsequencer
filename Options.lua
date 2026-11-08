@@ -123,25 +123,31 @@ buildButton:SetScript("OnClick", function(self)
 	local specs = ClassSpecBuilds()
 	if #builds == 0 and #specs == 0 then return end
 	MenuUtil.CreateContextMenu(self, function(owner, root)
-		-- one click: spec, talents and hero tree
-		root:CreateTitle("Switch to a build (spec, talents, hero tree)")
-		for _, sp in ipairs(specs) do
-			local sub = root:CreateButton(sp.name .. (sp.current and "  (current)" or ""))
-			for _, b in ipairs(sp.builds) do
-				sub:CreateButton(b.name or "Build", function() VS.SwitchToBuild(sp.id, b) end)
+		-- one click: spec, talents and hero tree (none in WoW Forever)
+		if #specs > 0 then
+			root:CreateTitle("Switch to a build (spec, talents, hero tree)")
+			for _, sp in ipairs(specs) do
+				local sub = root:CreateButton(sp.name .. (sp.current and "  (current)" or ""))
+				for _, b in ipairs(sp.builds) do
+					sub:CreateButton(b.name or "Build", function() VS.SwitchToBuild(sp.id, b) end)
+				end
 			end
 		end
 		if #builds == 0 then return end
-		root:CreateDivider()
+		if #specs > 0 then root:CreateDivider() end
 		root:CreateTitle("Put a build on your current talents")
 		for _, b in ipairs(builds) do
 			root:CreateButton(b.name or "Build", function()
 				if VS.StageBuild then VS.StageBuild(b.build, b.name) end
 			end)
 		end
+		-- Only import-string builds can become a saved loadout (Forever's are node lists).
+		local strings = {}
+		for _, b in ipairs(builds) do if type(b.build) == "string" then strings[#strings + 1] = b end end
+		if #strings == 0 then return end
 		root:CreateDivider()
 		local save = root:CreateButton("Save as a new loadout instead")
-		for _, b in ipairs(builds) do
+		for _, b in ipairs(strings) do
 			save:CreateButton(b.name or "Build", function()
 				if VS.ImportBuild then VS.ImportBuild(b.build, "VoidSeq " .. (b.name or "Build")) end
 			end)
@@ -152,7 +158,7 @@ buildButton:SetScript("OnEnter", function(self)
 	GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 	GameTooltip:AddLine("Recommended talent build")
 	GameTooltip:AddLine("Switch to a build: one click changes spec (if needed), talents and hero tree. Out of combat.", 1, 1, 1, true)
-	GameTooltip:AddLine("Put a build on your current talents: laid onto your talents, then open Talents (N) and click Apply Changes.", 1, 1, 1, true)
+	GameTooltip:AddLine("Put a build on your current talents: laid onto your talents and applied. Out of combat, stand still for the cast.", 1, 1, 1, true)
 	GameTooltip:AddLine("Leveling: pick it again after each level-up to spend the new points. Points the build can't use yet go on open talents until it can.", 0.7, 0.7, 0.7, true)
 	GameTooltip:Show()
 end)
@@ -161,6 +167,8 @@ buildButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
 local function RefreshBuildButtons()
 	local n = 0
 	for _, sp in ipairs(ClassSpecBuilds()) do n = n + #sp.builds end
+	-- WoW Forever has no switch list, only the current class's builds
+	if n == 0 and VS.RecommendedBuilds then n = #VS.RecommendedBuilds() end
 	if n == 0 then
 		buildButton:SetText("(no builds for your class yet)")
 		buildButton:SetEnabled(false)
@@ -575,7 +583,19 @@ elseif InterfaceOptions_AddCategory then
 	InterfaceOptions_AddCategory(panel)
 end
 
+-- The settings window is protected in combat (ADDON_ACTION_BLOCKED on OpenSettingsPanel,
+-- a minimap click mid-fight in Warsong Gulch, 2026-11-04): open it when combat ends.
+local openAfterCombat = CreateFrame("Frame")
+openAfterCombat:SetScript("OnEvent", function(self)
+	self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+	VS.OpenOptions()
+end)
 function VS.OpenOptions()
+	if InCombatLockdown() then
+		openAfterCombat:RegisterEvent("PLAYER_REGEN_ENABLED")
+		print("|cff9966ffVoidSequencer|r: settings open when combat ends.")
+		return
+	end
 	if category and Settings and Settings.OpenToCategory then
 		Settings.OpenToCategory(category:GetID()) -- numeric ID, not the name
 	elseif InterfaceOptionsFrame_OpenToCategory then
