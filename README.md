@@ -1,5 +1,7 @@
 # VoidSequencer
 
+**Works on:** WoW Midnight · WoW Forever (Rogue and Paladin so far)
+
 **One key, your whole rotation: built from what the best players actually press.**
 
 VoidSequencer puts your spec's rotation on a single key. Every spec and every hero tree has one, built from the casts of top Mythic players. Pick a recommended build, press 1, and play. You still press the key for every cast; VoidSequencer only picks which spell.
@@ -51,7 +53,7 @@ VoidSequencer puts your spec's rotation on a single key. Every spec and every he
 
 ## Getting Started
 1. Install with the CurseForge app, or copy the `VoidSequencer` folder into
-   `World of Warcraft/_retail_/Interface/AddOns/`.
+   `World of Warcraft/_retail_/Interface/AddOns/` (WoW Forever: `_forever_/Interface/AddOns/`).
 2. Restart WoW or `/reload`.
 3. Your rotation is already on **key 1**. Open `/vseq` to pick a recommended build or another rotation, then press 1.
 
@@ -71,7 +73,8 @@ Yes. VoidSequencer is a one-button macro: a secure button whose macro is rebuilt
 ---
 
 ## Compatibility
-- **WoW 12.1** (Midnight Season 2)
+- **WoW Midnight** 12.1.5 (Season 2): every spec
+- **WoW Forever**: Rogue and Paladin rotations so far; other classes aren't covered yet
 - Works on its own; no other addon needed.
 
 ---
