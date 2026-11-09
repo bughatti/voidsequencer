@@ -1,5 +1,9 @@
 # VoidSequencer Changelog
 
+## 1.0.10
+
+- **Fixed: box borders missing a side.** Depending on where a window sat on screen, its left, right or bottom line could vanish. Borders are now exactly one screen pixel and can't round away.
+
 ## 1.0.9 (Beta) — 2026-11-08
 
 - **WoW Forever rogue: the rotation key no longer puts you in Stealth.** Out of combat it used to cast Stealth first; now Stealth stays on your own key. When you are stealthed, the key still opens with Ambush or Cheap Shot, without an auto-attack swing breaking Stealth first.
