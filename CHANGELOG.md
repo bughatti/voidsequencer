@@ -1,5 +1,9 @@
 # VoidSequencer Changelog
 
+## 1.0.11
+
+- **WoW Forever:** **Defaults** no longer loads the Unholy rotation for a class without a built-in one (it says so instead), and the retail top-player rotation picker is hidden there.
+
 ## 1.0.10
 
 - **Fixed: box borders missing a side.** Depending on where a window sat on screen, its left, right or bottom line could vanish. Borders are now exactly one screen pixel and can't round away.

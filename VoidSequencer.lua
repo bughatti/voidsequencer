@@ -1321,6 +1321,9 @@ end
 -- The rotations this spec can run, for the options picker: hand-tuned ones first, then
 -- one generated per hero tree. { key, label }.
 function VS.RotationChoices()
+	-- WoW Forever: the spec API reports a placeholder spec, and these are retail top-player
+	-- rotations; the class rotation (FOREVER_<CLASS>) is the only one there (audit, 2026-11-09)
+	if IS_FOREVER then return {} end
 	local i = GetSpecialization and GetSpecialization()
 	local specID, name
 	if i then specID, name = GetSpecializationInfo(i) end
@@ -1346,6 +1349,7 @@ function VS.RotationChoices()
 	return out
 end
 function VS.GetRotationPick()
+	if IS_FOREVER then return nil end
 	local i = GetSpecialization and GetSpecialization()
 	local specID = i and GetSpecializationInfo(i)
 	return specID and VoidSequencerCharDB and VoidSequencerCharDB.rotPick and VoidSequencerCharDB.rotPick[specID]
@@ -3152,6 +3156,13 @@ function VS.RemoveSpell(mode, stepIdx, slotIdx)
 	local step = seqFor(mode)[stepIdx]; if step then table.remove(step, slotIdx) end
 end
 function VS.Defaults(mode)
+	-- no built-in rotation for this spec / Forever class: Defaults would load DEFAULT_SPEC (Unholy
+	-- DK) spells onto a Warrior (Forever audit, 2026-11-09). Say so and leave the sequence alone.
+	if VS.unsupportedSpec then
+		print("|cff00c7ffVoidSequencer|r has no built-in rotation for |cffffd700" .. VS.unsupportedSpec
+			.. "|r yet, so there are no defaults to load. Build one in the editor (/vseq).")
+		return
+	end
 	if mode == "AOE" then VoidSequencerDB.seqAOE = copySeq(specDefaults().aoe)
 	else VoidSequencerDB.seqST = copySeq(specDefaults().st) end
 	VS.Apply()
@@ -3258,7 +3269,9 @@ local function ApplySpec()
 		end
 	else
 		-- no defaults for this spec yet: don't seed wrong-class spells.
-		VS.unsupportedSpec = currentSpec   -- the real name, for the spec-change message
+		-- the real name, for the spec-change message ("FOREVER_WARRIOR" reads "Warrior (WoW Forever)")
+		local cls = type(currentSpec) == "string" and currentSpec:match("^FOREVER_(%u+)$")
+		VS.unsupportedSpec = cls and (cls:sub(1, 1) .. cls:sub(2):lower() .. " (WoW Forever)") or currentSpec
 		currentSpec = DEFAULT_SPEC
 		if not VoidSequencerDB.seqST then VoidSequencerDB.seqST = { { "" } } end
 		if not VoidSequencerDB.seqAOE then VoidSequencerDB.seqAOE = { { "" } } end
