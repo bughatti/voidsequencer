@@ -1,5 +1,9 @@
 # VoidSequencer Changelog
 
+## 1.0.13 — 2026-11-12
+
+- **Fixed: a side of a box could be missing**, e.g. the right line of the recipes box and its buttons when the game window is an odd number of pixels wide. Every Void box now always shows all four border lines.
+
 ## 1.0.12 — 2026-11-12
 
 - **The rotation test windows can be dragged** and stay where you put them, even after a restart.
