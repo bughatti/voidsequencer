@@ -1,5 +1,10 @@
 # VoidSequencer Changelog
 
+## 1.0.12 — 2026-11-12
+
+- **The rotation test windows can be dragged** and stay where you put them, even after a restart.
+- **Void hub button:** left-click opens one panel with all your Void addons by name, grouped, each with its own on/off switches (it replaces the ring of icons), with a background slider. The hub's info window now stays where you put it.
+
 ## 1.0.11
 
 - **WoW Forever:** **Defaults** no longer loads the Unholy rotation for a class without a built-in one (it says so instead), and the retail top-player rotation picker is hidden there.

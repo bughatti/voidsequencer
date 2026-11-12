@@ -4,6 +4,7 @@
 -- paste into our Discord. It records only your own casts (UNIT_SPELLCAST_SUCCEEDED on
 -- "player"), the game's error messages, and your damage from Blizzard's damage meter after
 -- the fight. No combat log, no character name or realm in the report.
+local _, ns = ...   -- ns.Move (VoidMove.lua)
 local ADDON, VS = ...
 
 local MIN_SECONDS = 60      -- shorter tests say little; the card says so
@@ -266,6 +267,7 @@ local function CopyWindow()
 	f:SetSize(520, 330); f:SetPoint("CENTER", 0, 40); f:SetFrameStrata("DIALOG")
 	f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
 	f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMovingOrSizing)
+	ns.Move(f, { db = function() return VoidSequencerDB end, key = "reportCopy" })   -- drag + kept after a restart (VoidMove.lua)
 	f.TitleText:SetText("Copy your report")
 	local hint = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	hint:SetPoint("TOPLEFT", 14, -32); hint:SetWidth(490); hint:SetJustifyH("LEFT")
@@ -297,6 +299,7 @@ local function Window()
 	f:SetSize(430, 140 + ROWS * 16); f:SetPoint("CENTER", 260, 0)
 	f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
 	f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMovingOrSizing)
+	ns.Move(f, { db = function() return VoidSequencerDB end, key = "testWindow" })   -- drag + kept after a restart (VoidMove.lua)
 	f.TitleText:SetText("VoidSequencer: Test my rotation")
 	f.head = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 	f.head:SetPoint("TOPLEFT", 14, -32); f.head:SetWidth(400); f.head:SetJustifyH("LEFT")

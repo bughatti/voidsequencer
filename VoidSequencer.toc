@@ -2,9 +2,10 @@
 ## Title: VoidSequencer
 ## Notes: One-button rotation engine + one-click recommended talent builds for every spec. ST/AoE switch, modifier casts, guided editor.
 ## Author: Vede
-## Version: 1.0.11
+## Version: 1.0.12
 ## SavedVariablesPerCharacter: VoidSequencerDB, VoidSequencerCharDB, VoidHubCharDB
 
+VoidMove.lua
 VoidSequencer.lua
 Builds.lua
 Rotations.lua

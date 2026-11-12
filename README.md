@@ -1,4 +1,4 @@
-# VoidSequencer
+# VoidSequencer - One Button Rotation Helper
 
 **Works on:** WoW Midnight · WoW Forever (Rogue and Paladin so far)
 
@@ -79,4 +79,4 @@ Yes. VoidSequencer is a one-button macro: a secure button whose macro is rebuilt
 
 ---
 
-*Part of the Void addon family by Vede · MIT licensed · [Source & bug reports](https://github.com/bughatti/voidsequencer) · [All Void addons](https://www.curseforge.com/members/bughatti/projects) · free M+ & raid player lookups at [voidscout.io](https://voidscout.io) · more at [tinkerline.io](https://tinkerline.io) · [Discord](https://discord.gg/7ZHmx7zMDh)*
+*Part of the Void addon family by Vede · MIT licensed · [Source & bug reports](https://github.com/bughatti/voidsequencer) · [All Void addons](https://www.curseforge.com/members/bughatti/projects) · free M+ & raid player lookups at [voidscout.io](https://voidscout.io) · more at [tinkerline.io](https://tinkerline.io/addons/voidsequencer/) · [Discord](https://discord.gg/7ZHmx7zMDh)*
