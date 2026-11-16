@@ -1,5 +1,11 @@
 # VoidSequencer Changelog
 
+## 1.1.0 — 2026-11-16
+
+- **No rotation, no key 1.** On a class VoidSequencer has no rotation for yet (a WoW Forever Hunter, say), it no longer takes key 1 or shows the Single Target / AoE switch in the middle of the screen. Key 1 stays your own bar key. Build a rotation in the editor and VoidSequencer takes the key the moment you add the first spell.
+- **Fixed: the options said "Unholy" on other classes** without a rotation. They now show your class.
+- **Windows open in front** of the Void windows already open.
+
 ## 1.0.13 — 2026-11-12
 
 - **Fixed: a side of a box could be missing**, e.g. the right line of the recipes box and its buttons when the game window is an odd number of pixels wide. Every Void box now always shows all four border lines.

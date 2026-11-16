@@ -1541,7 +1541,7 @@ end
 -- so mashing is harmless. Uses an explicit DEFAULTS[spec].priST / priAOE where defined,
 -- else flattens the editor sequence (first occurrence = highest priority).
 local function priorityList(mode)
-	local d = DEFAULTS[currentSpec]
+	local d = not VS.unsupportedSpec and DEFAULTS[currentSpec]   -- never Unholy's list on another class
 	local explicit = d and (mode == "AOE" and d.priAOE or d.priST)
 	if explicit then return explicit end
 	local seen, out = {}, {}
@@ -1981,6 +1981,8 @@ local function ApplyKey(key)
 	-- Master enable toggle OFF -> don't grab the key; release it so the user's own
 	-- keybind/bar on that key keeps working.
 	if not (VoidSequencerDB and VoidSequencerDB.enabled) then ReleaseKey(key); return end
+	-- nothing to cast: never take the key (also covers a key change deferred past combat)
+	if not VS.HasRotation() then return end
 	-- Record what was bound to this key before we take it, so disabling can restore
 	-- it. Guard against re-capturing our OWN binding on relogs where it persisted.
 	local prev = GetBindingAction and GetBindingAction(key)
@@ -2124,7 +2126,17 @@ local function ApplyEnabled()
 	-- in vehicles / quest override bars so Blizzard's vehicle bar has the screen (the
 	-- player, 2026-10-25). Out of combat only (ApplyEnabled callers defer in combat).
 	if InCombatLockdown() then pendingEnable = true return end
-	if VoidSequencerDB.enabled then
+	-- On, but nothing to cast (a class with no built-in rotation and an empty editor, e.g. a
+	-- WoW Forever Hunter): don't take key 1 or show the ST/AoE switch mid-screen; key 1 stays
+	-- the player's own bar key until a rotation is built (VS.Apply re-runs this).
+	VS.keyHeldEmpty = VoidSequencerDB.enabled and not VS.HasRotation() or nil
+	if VS.keyHeldEmpty then
+		-- give key 1 back only if it's still ours (never clear a key we never took)
+		local k = VoidSequencerDB.key
+		local cur = k and GetBindingAction(k)
+		if cur and cur:find("VoidSeqButton") then ReleaseKey(k) end
+		RegisterStateDriver(toggle, "visibility", "hide")
+	elseif VoidSequencerDB.enabled then
 		ApplyKey(VoidSequencerDB.key)
 		-- one-mode specs (healers: one loop, who you hover decides) have nothing to switch
 		local oneMode = DEFAULTS[currentSpec] and DEFAULTS[currentSpec].oneMode
@@ -2136,6 +2148,19 @@ local function ApplyEnabled()
 	end
 end
 VS.ApplyEnabled = ApplyEnabled
+-- Does key 1 run anything for this character? A built-in rotation (WoW Forever's FOREVER_<CLASS>
+-- ones included) or one built in the editor. (Per character: VoidSequencerDB is per character.)
+function VS.HasRotation()
+	if not VoidSequencerDB then return false end
+	for _, mode in ipairs({ "ST", "AOE" }) do   -- (an AoE-only editor rotation counts too)
+		for _, step in ipairs(seqFor(mode) or {}) do
+			for _, sp in ipairs(step) do
+				if type(sp) == "string" and sp ~= "" then return true end
+			end
+		end
+	end
+	return false
+end
 function VS.SetEnabled(on)
 	VoidSequencerDB.enabled = on and true or false
 	if InCombatLockdown() then pendingEnable = true; return end
@@ -3111,6 +3136,10 @@ end
 VoidSequencerAPI = {
 	RotationSpells = function() return VS.CheckRotation().used or {} end,
 	IsEnabled = function() return VS.GetEnabled() end,
+	-- true when key 1 actually runs something for this character: a built-in rotation (WoW Forever's
+	-- FOREVER_<CLASS> ones included) or one built in the editor. RotationSpells is empty on Forever,
+	-- so VoidBars asks this before reserving key 1 for us.
+	HasRotation = function() return VS.HasRotation() end,
 	SyncVehicleKey = SyncVehicleKey,   -- VoidBars calls this when it parks / restores Blizzard's bars
 	-- { [spell] = macroName } for this spec's healer key macros (made / updated now; out of combat)
 	HealMacros = function() return UpdateHealMacros(true) end,
@@ -3170,10 +3199,16 @@ end
 -- Apply edits. Returns true if applied now, false if queued until combat ends.
 function VS.Apply()
 	LoadSequences()
+	-- the first spell typed into an empty editor (or the last one removed) gives key 1 to us / back
+	if VoidSequencerDB and VoidSequencerDB.enabled and (not VS.HasRotation()) ~= (VS.keyHeldEmpty == true) then
+		ApplyEnabled()
+	end
 	return not InCombatLockdown()
 end
 -- Current spec name (for the options-panel header).
-function VS.CurrentSpec() return currentSpec end
+-- (a class with no rotation keeps currentSpec = DEFAULT_SPEC internally; show its real name, not
+-- "Unholy" on a WoW Forever Hunter, the user's son's PC 2026-11-16)
+function VS.CurrentSpec() return VS.unsupportedSpec or currentSpec end
 -- For the rotation test (RotationTest.lua): spec ID, hero tree, spell check, rotation rev.
 function VS.CurrentSpecID() return currentSpecID end
 VS.ActiveHero = activeHeroName
@@ -3421,15 +3456,16 @@ ev:SetScript("OnEvent", function(_, event, unit)
 		for k, v in pairs(DB_DEFAULTS) do
 			if VoidSequencerDB[k] == nil then VoidSequencerDB[k] = v end
 		end
-		if newKey and VoidSequencerDB.enabled then
-			print("|cff00c7ffVoidSequencer|r is on key |cffffd7001|r. Change it in /vseq.")
-		end
 		VoidSequencerDB.log, VoidSequencerDB.reloadTrace = nil, nil   -- leftovers of removed debug logs
 		if VoidSequencerCharDB then VoidSequencerCharDB.castlog, VoidSequencerCharDB.errlog = nil, nil end
 		-- Seed the sequences for the character's CURRENT spec (see ApplySpec). This
 		-- now also re-runs live on PLAYER_SPECIALIZATION_CHANGED, so swapping spec
 		-- no longer needs a /reload.
 		ApplySpec()
+		-- (after ApplySpec: a first login has no rotation seeded before it)
+		if newKey and VoidSequencerDB.enabled and VS.HasRotation() then
+			print("|cff00c7ffVoidSequencer|r is on key |cffffd7001|r. Change it in /vseq.")
+		end
 		AutoCheck()   -- first run only records the baseline (spell data needs a moment)
 		-- restore saved mode + position. A /reload in combat logs in under lockdown: the
 		-- secure attribute / position wait for combat to end (ADDON_ACTION_BLOCKED, 2026-10-25).
