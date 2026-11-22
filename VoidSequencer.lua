@@ -168,8 +168,18 @@ local FOREVER_ROGUE_PVP = "/castsequence reset=target/combat Sinister Strike, Si
 -- under 255 chars.
 -- rev 3 (retail test, levels 4-5): mobs died after ~4 Sinister Strikes, so Eviscerate (after
 -- 6) never fired. Now 2 strikes -> SnD, 2 more -> Eviscerate (4 points; 5 after Cheap Shot).
-local FOREVER_ROGUE_OPEN = "/castsequence reset=target/combat Sinister Strike, Sinister Strike, Slice and Dice, "
-	.. "Sinister Strike, Sinister Strike, Eviscerate"
+-- rev 10 (Sunken Temple combat log, 2026-11-21, the user: "fix the rotation"): the order restarts on every new target,
+-- so on trash it kept reaching Slice and Dice and rarely Eviscerate: 19 Slice and Dice to 8 Eviscerate in 10 pulls,
+-- Eviscerate 3.6% of the damage. Now Eviscerate comes first (3 points) and Slice and Dice second: a short trash fight
+-- gets the damage, a long one (a boss) still gets Slice and Dice up, and the two keep alternating.
+local FOREVER_ROGUE_OPEN = "/castsequence reset=target/combat Sinister Strike, Sinister Strike, Sinister Strike, Eviscerate, "
+	.. "Sinister Strike, Sinister Strike, Slice and Dice"
+-- rev 10: the PvE opener press in Stealth. Solo: Cheap Shot (as before). In a group (a tank holds the pull): Sinister
+-- Strike, not Cheap Shot (the run 2026-11-21 opened 9 trash pulls with Cheap Shot, 60 Energy for no damage, then
+-- waited on Energy). One line, not a second /cast: the step must stay under 255 characters (251 with swords). It also
+-- keeps a Vanish mid-fight from stalling: in a group the press always has a Sinister Strike to cast (Sol 11-21: the
+-- order can wait on a finisher at 0 points while every other step is [nostealth]). PvP mode keeps plain Cheap Shot.
+local FOREVER_ROGUE_STEALTH = "/cast [stealth,nogroup]Cheap Shot;[stealth]Sinister Strike"
 local FOREVER_ROGUE_CORE = FOREVER_ROGUE_OPEN:gsub("^/castsequence ", "/castsequence [nostealth] ")
 -- Dagger main hand (rev 6, 2026-11-07): Backstab x3 -> Eviscerate. Trash died before the
 -- sword order reached its 6th cast, so no Eviscerate at all in a dungeon (combat log);
@@ -299,8 +309,11 @@ local DEFAULTS = {
 		-- rev 7: the dagger order keeps Slice and Dice, like the guides (see DAGGER_OPEN).
 		-- rev 8: a dagger-only plain Sinister Strike step (zero-combo-point stall, see st).
 		-- rev 9: that step for swords too (the same stall, measured on a boss, see st).
-		rev = 9,
+		-- rev 10 (2026-11-21): sword order Eviscerate first, Slice and Dice second; in a group the Stealth press opens with Sinister Strike (see
+		-- FOREVER_ROGUE_OPEN and FOREVER_ROGUE_STEALTH).
+		rev = 10,
 		mods = {},
+		-- Cheap Shot stays plain [stealth] here (PvP mode's opener); the PvE steps use FOREVER_ROGUE_STEALTH (rev 10).
 		cond = { ["Cheap Shot"] = "[stealth]", ["Sinister Strike"] = "[nostealth]", ["Blade Flurry"] = "[nostealth]",
 			["Blood Fury"] = "[harm,nodead]", ["Shank"] = "[nostealth]", ["Ambush"] = "[stealth]",
 			["Backstab"] = "[nostealth]" },
@@ -325,15 +338,15 @@ local DEFAULTS = {
 		-- sat there: Old Serra'kis, 110 "requires combo points" in 54 s, 7 casts. 262 such
 		-- failed presses in the run. Shank gives no combo point. So the plain step is for both.
 		st = {
-			{ "Ambush", "Cheap Shot", "[nodagger]" .. FOREVER_ROGUE_OPEN, "[dagger]" .. DAGGER_OPEN },
+			{ "Ambush", FOREVER_ROGUE_STEALTH, "[nodagger]" .. FOREVER_ROGUE_OPEN, "[dagger]" .. DAGGER_OPEN },
 			{ "Riposte", "[nodagger]" .. FOREVER_ROGUE_CORE, "[dagger]" .. DAGGER_CORE, "[dagger]" .. DAGGER_FRONT },
 			{ "Shank" },
 			{ "Sinister Strike" },
 		},
 		aoe = {
-			{ "Ambush", "Cheap Shot", "[nodagger]" .. FOREVER_ROGUE_OPEN, "[dagger]" .. DAGGER_OPEN },
+			{ "Ambush", FOREVER_ROGUE_STEALTH, "[nodagger]" .. FOREVER_ROGUE_OPEN, "[dagger]" .. DAGGER_OPEN },
 			{ "Blade Flurry" },
-			{ "Ambush", "Cheap Shot", "[nodagger]" .. FOREVER_ROGUE_OPEN, "[dagger]" .. DAGGER_OPEN },
+			{ "Ambush", FOREVER_ROGUE_STEALTH, "[nodagger]" .. FOREVER_ROGUE_OPEN, "[dagger]" .. DAGGER_OPEN },
 			{ "Riposte", "[nodagger]" .. FOREVER_ROGUE_CORE, "[dagger]" .. DAGGER_CORE, "[dagger]" .. DAGGER_FRONT },
 			{ "Shank" },
 			{ "Sinister Strike" },

@@ -1,5 +1,10 @@
 # VoidSequencer Changelog
 
+## 1.1.1 — 2026-11-22
+
+- **WoW Forever Rogue (swords): more Eviscerates.** The order now goes Sinister Strike three times, Eviscerate, two more, then Slice and Dice. Trash dies fast and the order starts over on every new target, so it used to spend most combo points on Slice and Dice (19 to 8 in a measured Sunken Temple run). A long fight still gets Slice and Dice up.
+- **In a group, key 1 in Stealth opens with Sinister Strike** instead of Cheap Shot (60 Energy for no damage while a tank holds the pull). Solo and in world PvP it's still Cheap Shot.
+
 ## 1.1.0 — 2026-11-16
 
 - **No rotation, no key 1.** On a class VoidSequencer has no rotation for yet (a WoW Forever Hunter, say), it no longer takes key 1 or shows the Single Target / AoE switch in the middle of the screen. Key 1 stays your own bar key. Build a rotation in the editor and VoidSequencer takes the key the moment you add the first spell.
