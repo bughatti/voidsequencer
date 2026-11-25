@@ -1,5 +1,17 @@
 # VoidSequencer Changelog
 
+## 1.2.0 — 2026-11-25
+
+- **Build your own rotation, completely.** Under **Rotation** in `/vseq` you can now keep as many rotations of your own as you like next to the suggested one, and switch between them. Each one holds the single-target and AoE steps, the lines that run on every press and the Alt / Ctrl / Shift casts.
+- **Updates never wipe your changes again.** The suggested rotation is never edited in place: your first change makes your own copy of it. Edits you made before this version were moved into a rotation of your own called "My edits".
+- **Share a rotation as text.** Export it, paste it in Discord or to a friend, and they import it in one click.
+- **A spell picker from your spellbook**: every spellbook tab, your pet's spells, trinkets and bag items with a Use: effect, plus "Type a macro line" for experts.
+- **Every press**: choose the lines that run before each step (`/startattack`, `/petattack`, Auto Shot...).
+- **Tooltips on every button** in the editor, saying what it does.
+- **WoW Forever Hunter rotation**: Raptor Strike / Mongoose Bite in melee, Hunter's Mark and Serpent Sting once per target, Arcane Shot, Multi-Shot for AoE, and your pet attacks with you.
+- The options page is more compact, so more steps are visible.
+- **Needs a game restart** (not just /reload) the first time: this version adds a new file.
+
 ## 1.1.1 — 2026-11-22
 
 - **WoW Forever Rogue (swords): more Eviscerates.** The order now goes Sinister Strike three times, Eviscerate, two more, then Slice and Dice. Trash dies fast and the order starts over on every new target, so it used to spend most combo points on Slice and Dice (19 to 8 in a measured Sunken Temple run). A long fight still gets Slice and Dice up.

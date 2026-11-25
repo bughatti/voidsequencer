@@ -1,6 +1,6 @@
 # VoidSequencer - One Button Rotation Helper
 
-**Works on:** WoW Midnight · WoW Forever (Rogue and Paladin so far)
+**Works on:** WoW Midnight · WoW Forever (Rogue, Paladin and Hunter so far)
 
 **One key, your whole rotation: built from what the best players actually press.**
 
@@ -31,11 +31,22 @@ VoidSequencer puts your spec's rotation on a single key. Every spec and every he
 - **Put a build on your current talents** — it's laid onto your talent tree; open Talents and click Apply.
 - **Leveling** — pick the build again after a level-up to spend the new points.
 
+### Build Your Own Rotation
+Don't like the suggested rotation? Make your own, completely. Every button has a tooltip that says what it does.
+- **Your own rotations** — keep as many as you like per spec (WoW Forever: per class) next to the suggested one, and switch between them under **Rotation** in `/vseq`.
+- **Never wiped by an update** — the suggested rotation is never edited in place: your first change makes your own copy of it. Updates only ever change the suggested one.
+- **Start from a copy or from empty** — copy what runs now and tweak it, or start with a blank list.
+- **Spell picker from your spellbook** — every tab of your spellbook, your pet's spells, trinkets and bag items with a Use: effect. No macro syntax needed.
+- **Fallbacks** — a step can hold several spells: the first one that's ready is cast.
+- **Macro lines for experts** — type any macro line into a step (`/castsequence`, `[mod:shift]`, `/use 13`...).
+- **Every press** — lines that run before each step, like `/startattack` or `/petattack`.
+- **Modifier casts** — hold Alt, Ctrl or Shift while pressing your key to fire a spell you choose (a cooldown, a defensive, an external).
+- **Share as text** — export a rotation and paste it in Discord or to a friend; they import it in one click. Plain readable text, so anyone can check what it casts.
+- **Rename, delete, restore** — and "Restore suggested steps" puts the suggested steps back into your copy.
+
 ### Your Key, Your Call
 - **Enable toggle** — switch it off and key 1 goes back to whatever you had bound there.
 - **Any key or the mouse wheel** — Set Keybind takes a key, the mouse wheel (up or down: each notch is one press), mouse buttons 3-5, or an Alt / Ctrl / Shift combination.
-- **Rotation editor** — change any step with a spell picker. No macro syntax.
-- **Modifier casts** — hold Alt, Ctrl or Shift while pressing your key to fire a spell you choose (a cooldown, a defensive, an external).
 - **Rotation check** — shows how many of the rotation's spells you have, like "6 of 9 spells, the rest join as you learn them".
 
 ---
@@ -68,13 +79,13 @@ Yes. VoidSequencer is a one-button macro: a secure button whose macro is rebuilt
 ## Good to Know
 - **English game client only** — rotations cast spells by their English names.
 - **Where the rotations come from** — top players' fights and Blizzard's own game data, refreshed when talent trees change.
-- **Your settings** — saved per character: your key, your rotation picks and any edits.
+- **Your settings** — saved per character: your key, your rotation picks and your own rotations.
 
 ---
 
 ## Compatibility
 - **WoW Midnight** 12.1.5 (Season 2): every spec
-- **WoW Forever**: Rogue and Paladin rotations so far; other classes aren't covered yet
+- **WoW Forever**: Rogue, Paladin and Hunter rotations so far; on other classes build your own
 - Works on its own; no other addon needed.
 
 ---

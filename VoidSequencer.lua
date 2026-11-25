@@ -403,6 +403,37 @@ local DEFAULTS = {
 			} },
 		},
 	},
+	-- WoW Forever Hunter (2026-11-17, the user: "he should have a forever hunter rotation, basic
+	-- one"; his son's level-10 Hunter had key 1 doing nothing). A basic leveling shooter, built
+	-- from Forever's own spell tables (wago DB2 build 1.60.1.70959: SpellLevels, SpellCooldowns,
+	-- SpellPower): Auto Shot 1, Raptor Strike 1 (next melee swing, off the GCD, 6 s), Serpent
+	-- Sting 4, Hunter's Mark 6, Arcane Shot 6 (6 s cooldown), Mongoose Bite 16 (after you
+	-- dodge), Multi-Shot 18 (6 s). Spells you don't know yet are trimmed, so it grows as you level.
+	-- Every press: send the pet, keep Auto Shot going ("!" = never toggles it off). Then:
+	--   * Mongoose Bite / Raptor Strike first: in melee they land, at range they fail and the
+	--     press carries on (a failed line doesn't stop the macro);
+	--   * Hunter's Mark, then Serpent Sting, once per target (a "Spell, null" castsequence:
+	--     the next target starts it over);
+	--   * Arcane Shot (Multi-Shot first in AoE) whenever it's off cooldown.
+	-- No /startattack: starting a melee swing at range would stop Auto Shot. Raptor Strike
+	-- starts the melee swing itself. Concussive Shot, Wing Clip, aspects, traps and pet
+	-- care stay on the player's keys (VoidBars puts them there).
+	["FOREVER_HUNTER"] = {
+		rev = 1,
+		mods = {},
+		macroHead = "/petattack [@target,harm,nodead]\n/cast [@target,harm,nodead] !Auto Shot\n",
+		headSpells = { "Auto Shot" },   -- cast by the head line: off the player's bars too
+		st = {
+			{ "Mongoose Bite", "Raptor Strike", "/castsequence reset=target Hunter's Mark, null", "Arcane Shot" },
+			{ "Mongoose Bite", "Raptor Strike", "/castsequence reset=target Serpent Sting, null", "Arcane Shot" },
+			{ "Mongoose Bite", "Raptor Strike", "Arcane Shot" },
+		},
+		aoe = {
+			{ "Mongoose Bite", "Raptor Strike", "/castsequence reset=target Hunter's Mark, null", "Multi-Shot", "Arcane Shot" },
+			{ "Mongoose Bite", "Raptor Strike", "/castsequence reset=target Serpent Sting, null", "Multi-Shot", "Arcane Shot" },
+			{ "Mongoose Bite", "Raptor Strike", "Multi-Shot", "Arcane Shot" },
+		},
+	},
 	-- Unholy DK. Built to match how the top Unholy DKs actually play it -- their cast
 	-- profile is the spec
 	-- in three numbers: Scourge Strike is the SPINE (135-207x), Death Coil/Necrotic
@@ -1370,6 +1401,9 @@ end
 
 -- "Unholy:San'layn" -> "Unholy (San'layn)" for chat and the options panel.
 local function specLabel(key)
+	-- "FOREVER_HUNTER" reads "Hunter (WoW Forever)"; "Unholy:San'layn" reads "Unholy (San'layn)"
+	local cls = tostring(key):match("^FOREVER_(%u+)$")
+	if cls then return cls:sub(1, 1) .. cls:sub(2):lower() .. " (WoW Forever)" end
 	return (tostring(key):gsub("^([^:]+):(.+)$", "%1 (%2)"))
 end
 VS.SpecLabel = specLabel
@@ -1403,8 +1437,20 @@ end
 -- VoidSequencerDB.mods ({alt=,ctrl=,shift=}), seeded per spec + rebindable in the
 -- options panel's modifier pickers. No modifier held -> the [mod:*] lines fail
 -- and fall through to the real rotation.
+-- Your own rotation for this spec when one is picked (MyRotations.lua), else nil: the suggested one runs.
+-- VS.mineSlot = the spec / Forever class it belongs to, set by ApplySpec.
+local function mine()
+	return VS.Mine and VS.mineSlot and VS.Mine.Active(VS.mineSlot) or nil
+end
+-- the Alt / Ctrl / Shift casts that run: your own rotation's, else the suggested one's
+local function curMods()
+	local my = mine()
+	if my then my.mods = my.mods or {}; return my.mods end
+	return VoidSequencerDB and VoidSequencerDB.mods or {}
+end
+
 local function modPrefix()
-	local m = VoidSequencerDB and VoidSequencerDB.mods or {}
+	local m = curMods()
 	local lines = {}
 	for _, mod in ipairs({ "alt", "ctrl", "shift" }) do
 		local c = modCast(mod, m[mod])
@@ -1532,6 +1578,8 @@ end
 
 -- Live sequence accessor (reads straight from SV; the editor mutates these).
 local function seqFor(mode) -- mode == "AOE" or "ST"
+	local my = mine()
+	if my then return mode == "AOE" and my.aoe or my.st end
 	if mode == "AOE" then return VoidSequencerDB.seqAOE else return VoidSequencerDB.seqST end
 end
 
@@ -1665,7 +1713,13 @@ local function loadTable(name, seq, numVar, lines, noAttack, fallback)
 		if DAGGER_MH_ONLY[o] and not MainHandIsDagger() then return false end
 		return knownForMacro(o)
 	end
-	if dSpec and dSpec.macroHead then
+	local my = mine()
+	if my then
+		-- your own rotation: its own "every press" lines, exactly as you wrote them (none = nothing before the step)
+		attack = (my.head and my.head ~= "") and (my.head .. "\n") or ""
+		-- the class safety line stays (Forever Rogue: /stopattack [stealth], so a queued auto-attack never breaks Stealth)
+		if dSpec and dSpec.macroTail then tail = "\n" .. dSpec.macroTail end
+	elseif dSpec and dSpec.macroHead then
 		if not dSpec.opener or openerReady(dSpec.opener) then
 			attack = dSpec.macroHead
 			-- Last line, so if a macro ever runs long capMacro drops this one first.
@@ -1696,16 +1750,19 @@ local loadedText
 local function LoadSequences(onlyIfChanged)
 	local lines = {}
 	local d = DEFAULTS[currentSpec]
-	local noAttack = d and d.healSelfLast   -- healer loops: no /startattack
-	local fb = d and d.fallback
+	-- your own rotation runs exactly as built: its own "every press" lines, no filled-in leveling buttons,
+	-- no PvP or form loop from the suggested one
+	local my = mine() and true or false
+	local noAttack = not my and d and d.healSelfLast   -- healer loops: no /startattack
+	local fb = not my and d and d.fallback
 	loadTable("macrosST", seqOrPriority("ST"), "numST", lines, noAttack, fb)
 	loadTable("macrosAOE", seqOrPriority("AOE"), "numAOE", lines, noAttack, fb)
 	-- PvP: a third mode only for specs that define one (d.pvp, defaults only, not edited).
-	local pvpSeq = d and d.pvp
+	local pvpSeq = not my and d and d.pvp
 	loadTable("macrosPVP", pvpSeq or {}, "numPVP", lines, noAttack)
 	-- Optional form loop (d.formLoop = { rule = "<conditions> form; ...", seq = {...} }):
 	-- the click snippet runs it when the rule says "form" (Resto: Cat Form, no friendly hovered).
-	local fl = d and d.formLoop
+	local fl = not my and d and d.formLoop
 	loadTable("macrosFORM", (fl and fl.seq) or {}, "numFORM", lines)
 	lines[#lines + 1] = "formRule = " .. ((fl and fl.rule) and ("[=======[" .. fl.rule .. "]=======]") or "nil")
 	local text = table.concat(lines, "\n")
@@ -2988,7 +3045,7 @@ function VS.CheckRotation()
 		end
 	end
 	local d = DEFAULTS[currentSpec]
-	for _, sp in pairs(VoidSequencerDB.mods or {}) do note(sp) end
+	for _, sp in pairs(curMods()) do note(sp) end
 	for nm in pairs(talentedActives()) do
 		if not used[nm] then r.unused[#r.unused + 1] = nm end
 	end
@@ -3146,8 +3203,40 @@ end
 
 -- Small read-only API for sibling addons (VoidBars' suggested layout): which spells
 -- the rotation + held modifiers already cast, so they don't need their own key.
+-- WoW Forever: CheckRotation stays off there (its warnings are for retail builds), so the spell
+-- names come straight from the rotation: plain steps, castsequence lines and the head line
+-- (FOREVER_HUNTER's Auto Shot). VoidBars uses this to keep them off the player's other keys.
+local function rotationNames()
+	local used = {}
+	local function add(n)
+		n = n and strtrim(n)
+		if n and n ~= "" and n ~= "null" then used[n] = true end
+	end
+	local function addRaw(line)
+		local body = line:gsub("^/%a+%s*", ""):gsub("%[.-%]", ""):gsub("reset=%S+", "")
+		for part in body:gmatch("[^,;]+") do add(part) end
+	end
+	if not VoidSequencerDB then return used end
+	for _, mode in ipairs({ "ST", "AOE" }) do
+		for _, step in ipairs(seqFor(mode) or {}) do
+			for _, sp in ipairs(step) do
+				if type(sp) == "string" and sp ~= "" then
+					local s = sp:gsub("^%[n?o?dagger%]", "")
+					if s:sub(1, 1) == "/" then addRaw(s) else add(s) end
+				end
+			end
+		end
+	end
+	local d = DEFAULTS[currentSpec]
+	for _, n in ipairs(d and d.headSpells or {}) do add(n) end
+	return used
+end
+
 VoidSequencerAPI = {
-	RotationSpells = function() return VS.CheckRotation().used or {} end,
+	RotationSpells = function()
+		if IS_FOREVER then return rotationNames() end
+		return VS.CheckRotation().used or {}
+	end,
 	IsEnabled = function() return VS.GetEnabled() end,
 	-- true when key 1 actually runs something for this character: a built-in rotation (WoW Forever's
 	-- FOREVER_<CLASS> ones included) or one built in the editor. RotationSpells is empty on Forever,
@@ -3177,36 +3266,71 @@ local function AutoCheck()
 end
 VS.AutoCheck = AutoCheck
 
--- ---- Rotation-editor API (consumed by Options.lua's spell-picker) ----
--- The editor mutates the tables returned by VS.Seq() directly, then calls
--- VS.Apply() to regenerate macros and push them into the secure environment.
-function VS.Seq(mode) return seqFor(mode) end       -- live SV step list
-function VS.AddStep(mode) local s = seqFor(mode); s[#s + 1] = { "" } end
-function VS.RemoveStep(mode, i) table.remove(seqFor(mode), i) end
+-- ---- Rotation-editor API (Options.lua's editor, the VoidHub page) ----
+-- The editor changes the tables VS.Seq() returns, then calls VS.Apply() to rebuild the macros.
+-- The SUGGESTED rotation is never edited: the first change makes your own copy of it ("My <spec>"), picked at once,
+-- so an update to the suggested one can't wipe your work (MyRotations.lua). The copy keeps everything key 1 did:
+-- both step lists, the "every press" lines and the Alt / Ctrl / Shift casts.
+local function suggestedHead()
+	local d = not VS.unsupportedSpec and DEFAULTS[currentSpec]
+	if not d then return "/startattack" end
+	if d.healSelfLast then return "" end
+	return ((d.macroHead or "/startattack\n"):gsub("\n+$", ""))
+end
+function VS.SuggestedLabel()
+	if VS.unsupportedSpec then return VS.unsupportedSpec end
+	return specLabel(currentSpec)
+end
+-- the name a new copy of the suggested rotation gets: "My Hunter", "My Unholy (San'layn)"
+function VS.MineDefaultName()
+	return "My " .. (VS.SuggestedLabel():gsub(" %(WoW Forever%)$", ""))
+end
+local function editable()
+	if mine() or not (VS.Mine and VS.mineSlot and VoidSequencerDB) then return end
+	local d = not VS.unsupportedSpec and DEFAULTS[currentSpec]
+	local r = VS.Mine.Create(VS.mineSlot, VS.MineDefaultName(), VoidSequencerDB.seqST, VoidSequencerDB.seqAOE,
+		suggestedHead(), VoidSequencerDB.mods, { from = currentSpec, fromRev = d and ((d.rev or 0) .. ":" .. DEFAULTS_VER) or nil })
+	VS.Mine.SetActive(VS.mineSlot, r.name)
+	print("|cff9966ffVoidSequencer|r: your change started your own rotation, |cffffd700" .. r.name
+		.. "|r. The suggested one stays as it ships; switch back any time under |cffffd700Rotation|r in /vseq.")
+	if VS.RefreshOptions then VS.RefreshOptions() end
+end
+function VS.Seq(mode) return seqFor(mode) end       -- the step list that runs
+function VS.AddStep(mode) editable(); local s = seqFor(mode); s[#s + 1] = { "" } end
+function VS.RemoveStep(mode, i) editable(); table.remove(seqFor(mode), i) end
 function VS.MoveStep(mode, i, dir)
+	editable()
 	local s = seqFor(mode); local j = i + dir
 	if s[i] and s[j] then s[i], s[j] = s[j], s[i]; return j end
 	return i
 end
+local function clean(e) return VS.Mine and VS.Mine.CleanEntry(e) or e end
 function VS.SetSpell(mode, stepIdx, slotIdx, spell)
-	local step = seqFor(mode)[stepIdx]; if step then step[slotIdx] = spell end
+	editable()
+	-- slotIdx nil = a new spell at the end of the step (+ Spell: only added once one is picked)
+	local step = seqFor(mode)[stepIdx]; if step then step[slotIdx or (#step + 1)] = clean(spell) end
 end
 function VS.AddSpell(mode, stepIdx, spell)
-	local step = seqFor(mode)[stepIdx]; if step then step[#step + 1] = spell or "" end
+	editable()
+	local step = seqFor(mode)[stepIdx]; if step then step[#step + 1] = clean(spell or "") end
 end
 function VS.RemoveSpell(mode, stepIdx, slotIdx)
+	editable()
 	local step = seqFor(mode)[stepIdx]; if step then table.remove(step, slotIdx) end
 end
+-- Restore: on your own rotation, that mode's steps become the suggested ones again (the rest of it stays yours);
+-- on the suggested rotation there's nothing to restore (it's never edited).
 function VS.Defaults(mode)
-	-- no built-in rotation for this spec / Forever class: Defaults would load DEFAULT_SPEC (Unholy
-	-- DK) spells onto a Warrior (Forever audit, 2026-11-09). Say so and leave the sequence alone.
-	if VS.unsupportedSpec then
-		print("|cff00c7ffVoidSequencer|r has no built-in rotation for |cffffd700" .. VS.unsupportedSpec
-			.. "|r yet, so there are no defaults to load. Build one in the editor (/vseq).")
+	local my = mine()
+	if not my then
+		if VS.unsupportedSpec then
+			print("|cff00c7ffVoidSequencer|r has no suggested rotation for |cffffd700" .. VS.unsupportedSpec
+				.. "|r yet: build your own in the editor (/vseq).")
+		end
 		return
 	end
-	if mode == "AOE" then VoidSequencerDB.seqAOE = copySeq(specDefaults().aoe)
-	else VoidSequencerDB.seqST = copySeq(specDefaults().st) end
+	if mode == "AOE" then my.aoe = copySeq(VoidSequencerDB.seqAOE or { { "" } })
+	else my.st = copySeq(VoidSequencerDB.seqST or { { "" } }) end
 	VS.Apply()
 end
 -- Apply edits. Returns true if applied now, false if queued until combat ends.
@@ -3230,20 +3354,172 @@ function VS.RotationRev()
 	local d = DEFAULTS[currentSpec]
 	return d and d.rev or 0, d and d.gen and true or false
 end
--- The shipped steps for a mode (read-only; VS.Defaults resets to them).
+-- The shipped steps for a mode (read-only).
 function VS.DefaultSteps(mode)
 	local d = specDefaults()
 	return d and (mode == "AOE" and d.aoe or d.st) or {}
 end
 -- Modifier ability assignments (ALT/CTRL/SHIFT -> ability), edited by the panel.
-function VS.GetMod(mod) return (VoidSequencerDB.mods and VoidSequencerDB.mods[mod]) or "" end
+function VS.GetMod(mod) return curMods()[mod] or "" end
 function VS.SetMod(mod, spell)
-	VoidSequencerDB.mods = VoidSequencerDB.mods or {}
-	VoidSequencerDB.mods[mod] = (spell ~= nil and spell ~= "") and spell or nil
+	editable()
+	local m = curMods()
+	if not mine() then   -- no rotation of your own possible yet (before the spec is known): the stored set
+		VoidSequencerDB.mods = VoidSequencerDB.mods or {}
+		m = VoidSequencerDB.mods
+	end
+	spell = clean(spell or "")
+	m[mod] = spell ~= "" and spell or nil
 	VS.Apply()
 end
--- Spells offered in the picker: union of the player's action-bar spells and any
--- spell already used in either rotation (so current picks always show), sorted.
+-- "Every press": the lines that run before each step (/petattack, /startattack, Auto Shot...)
+function VS.GetHead()
+	local my = mine()
+	if my then return my.head or "" end
+	return suggestedHead()
+end
+function VS.SetHead(text)
+	editable()
+	local my = mine()
+	if not my then return end
+	my.head = VS.Mine.CleanLines(text)
+	VS.Apply()
+end
+
+-- ---- Your own rotations (MyRotations.lua) ----
+function VS.MineList() return VS.Mine and VS.mineSlot and VS.Mine.List(VS.mineSlot) or {} end
+function VS.MineActive() local my = mine(); return my and my.name or nil end
+local function switched(msg)
+	if InCombatLockdown() then print("|cff9966ffVoidSequencer|r: it loads when combat ends.") end
+	VS.Apply()
+	PushMode()
+	if msg then print("|cff9966ffVoidSequencer|r: " .. msg) end
+	if VS.RefreshOptions then VS.RefreshOptions() end
+end
+-- name = one of yours, nil = the suggested rotation
+function VS.UseMine(name)
+	if not (VS.Mine and VS.mineSlot) then return end
+	VS.Mine.SetActive(VS.mineSlot, name)
+	local my = mine()
+	switched(my and ("running your rotation |cffffd700" .. my.name .. "|r.")
+		or ("running the suggested rotation (|cffffd700" .. VS.SuggestedLabel() .. "|r)."))
+end
+-- blank = start from nothing; else a copy of what runs now (the suggested rotation or one of yours)
+function VS.NewMine(name, blank)
+	if not (VS.Mine and VS.mineSlot and VoidSequencerDB) then return end
+	local r
+	if blank then
+		r = VS.Mine.Create(VS.mineSlot, name, { { "" } }, { { "" } }, suggestedHead(), {})
+	else
+		r = VS.Mine.Create(VS.mineSlot, name, seqFor("ST"), seqFor("AOE"), VS.GetHead(), curMods())
+	end
+	VS.Mine.SetActive(VS.mineSlot, r.name)
+	switched("made |cffffd700" .. r.name .. "|r" .. (blank and ", empty: add steps in the editor." or "."))
+	return r
+end
+function VS.RenameMine(old, new)
+	if not (VS.Mine and VS.mineSlot) then return end
+	local n = VS.Mine.Rename(VS.mineSlot, old, new)
+	if VS.RefreshOptions then VS.RefreshOptions() end
+	return n
+end
+function VS.DeleteMine(name)
+	if not (VS.Mine and VS.mineSlot) then return end
+	local wasActive = VS.MineActive() == name
+	VS.Mine.Delete(VS.mineSlot, name)
+	if wasActive then switched("deleted |cffffd700" .. name .. "|r; the suggested rotation runs again.")
+	elseif VS.RefreshOptions then VS.RefreshOptions() end
+end
+local function classFile() return select(2, UnitClass("player")) end
+function VS.ExportMine(name)
+	local r = name and VS.Mine and VS.mineSlot and VS.Mine.Find(VS.mineSlot, name)
+	if not r then   -- the running one, suggested included
+		r = { name = VS.MineActive() or VS.SuggestedLabel(), st = seqFor("ST"), aoe = seqFor("AOE"), head = VS.GetHead(), mods = curMods() }
+	end
+	return VS.Mine.Export(r, classFile(), VS.mineSlot)
+end
+-- returns the new rotation, or nil + what's wrong; a warning when it's another class's
+function VS.ImportMine(text)
+	if not (VS.Mine and VS.mineSlot) then return nil, "Log in fully first." end
+	local r, warn = VS.Mine.Import(VS.mineSlot, text, classFile())
+	if not r then return nil, warn end
+	VS.Mine.SetActive(VS.mineSlot, r.name)
+	switched("imported |cffffd700" .. r.name .. "|r and switched to it." .. (warn and (" " .. warn) or ""))
+	return r, warn
+end
+
+-- ---- What the picker offers ----
+-- Spells in groups, like the spellbook: { { label = "Hunter", list = { names } }, ..., { label = "Pet", ... } }.
+-- Learned, not passive, not another spec's.
+function VS.SpellGroups()
+	local out = {}
+	local SB = C_SpellBook
+	local bank = Enum and Enum.SpellBookSpellBank
+	local SPELL = Enum and Enum.SpellBookItemType and Enum.SpellBookItemType.Spell or 1
+	if SB and SB.GetNumSpellBookSkillLines and SB.GetSpellBookItemInfo and bank then
+		for i = 1, SB.GetNumSpellBookSkillLines() or 0 do
+			local line = SB.GetSpellBookSkillLineInfo(i)
+			if line and not line.shouldHide and not line.offSpecID then
+				local seen, list = {}, {}
+				for k = line.itemIndexOffset + 1, line.itemIndexOffset + line.numSpellBookItems do
+					local info = SB.GetSpellBookItemInfo(k, bank.Player)
+					if info and info.itemType == SPELL and not info.isPassive and not info.isOffSpec and info.name
+						and info.name ~= "" and not seen[info.name] then
+						seen[info.name] = true; list[#list + 1] = info.name
+					end
+				end
+				table.sort(list)
+				if #list > 0 then out[#out + 1] = { label = line.name, list = list } end
+			end
+		end
+		local n = SB.HasPetSpells and SB.HasPetSpells()
+		if n and n > 0 and bank.Pet then
+			local seen, list = {}, {}
+			for k = 1, n do
+				local info = SB.GetSpellBookItemInfo(k, bank.Pet)
+				if info and info.name and info.name ~= "" and not info.isPassive and not seen[info.name] then
+					seen[info.name] = true; list[#list + 1] = info.name
+				end
+			end
+			table.sort(list)
+			if #list > 0 then out[#out + 1] = { label = "Pet", list = list } end
+		end
+	end
+	return out
+end
+-- { { text = shown, value = "/use ..." } }: worn trinkets with a use, then bag items with a use (potions, food...)
+function VS.ItemChoices()
+	local out, seen = {}, {}
+	local getSpell = (C_Item and C_Item.GetItemSpell) or GetItemSpell
+	local function nameOf(x) return (C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(x)) end
+	for _, slot in ipairs({ 13, 14 }) do
+		local link = GetInventoryItemLink("player", slot)
+		if link and getSpell and getSpell(link) then
+			local nm = link:match("%[(.-)%]") or ("slot " .. slot)
+			out[#out + 1] = { text = ("Trinket %d: %s"):format(slot - 12, nm), value = "/use " .. slot }
+		end
+	end
+	if C_Container and C_Container.GetContainerNumSlots then
+		for bag = 0, 4 do
+			for s = 1, C_Container.GetContainerNumSlots(bag) or 0 do
+				local info = C_Container.GetContainerItemInfo(bag, s)
+				local id = info and info.itemID
+				-- only what belongs in a fight: no recipes (9), quest items (12) or Hearthstone & co. (15, misc)
+				local instant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+				local classID = id and instant and select(6, instant(id))
+				local skip = classID == 9 or classID == 12 or classID == 15
+				if id and not skip and not seen[id] and getSpell and getSpell(id) then
+					seen[id] = true
+					local nm = nameOf(id) or (info.hyperlink and info.hyperlink:match("%[(.-)%]"))
+					if nm then out[#out + 1] = { text = nm, value = "/use " .. nm } end
+				end
+			end
+		end
+	end
+	table.sort(out, function(a, b) return a.text < b.text end)
+	return out
+end
+-- every spell in one sorted list (the modifier menus, the VoidHub page): action bars, the spellbook, the rotation
 function VS.SpellPool()
 	local set, list = {}, {}
 	local function add(nm) if nm and nm ~= "" and not set[nm] then set[nm] = true; list[#list + 1] = nm end end
@@ -3251,6 +3527,7 @@ function VS.SpellPool()
 		local atype, id = GetActionInfo(slot)
 		if atype == "spell" and id and C_Spell and C_Spell.GetSpellName then add(C_Spell.GetSpellName(id)) end
 	end
+	for _, g in ipairs(VS.SpellGroups()) do for _, nm in ipairs(g.list) do add(nm) end end
 	for _, m in ipairs({ "ST", "AOE" }) do
 		for _, step in ipairs(seqFor(m) or {}) do
 			for _, sp in ipairs(step) do add(sp) end
@@ -3268,10 +3545,89 @@ end
 -- rotation with NO /reload -- fixes the bug where switching Resto -> Guardian kept
 -- firing the leftover heal sequence. Re-seeds only when the spec actually changed
 -- (or version bump / first run), so a same-spec /reload keeps your edits.
+local function sameSeq(a, b)
+	if type(a) ~= "table" or type(b) ~= "table" or #a ~= #b then return false end
+	for i = 1, #a do
+		local x, y = a[i], b[i]
+		if type(x) ~= "table" or type(y) ~= "table" or #x ~= #y then return false end
+		for j = 1, #x do if x[j] ~= y[j] then return false end end
+	end
+	return true
+end
+local function sameMods(a, b)
+	a, b = a or {}, b or {}
+	for _, k in ipairs({ "alt", "ctrl", "shift" }) do
+		if (a[k] or "") ~= (b[k] or "") then return false end
+	end
+	return true
+end
+local function anySpell(seq)
+	for _, step in ipairs(seq or {}) do
+		for _, e in ipairs(step) do if type(e) == "string" and e ~= "" then return true end end
+	end
+	return false
+end
+-- Until 1.2.0 the editor changed the suggested rotation itself, and an update put the suggested one back over your
+-- edits. Once per spec: what you'd built becomes a rotation of your own (MyRotations.lua) and keeps running. When the
+-- suggested rotation changed since (another version), your old one is kept too, but not switched on: you pick it.
+-- one stored set of lists -> a rotation of your own when they differ from what ships; second value: switch it on
+local function migrateOne(slot, key, st, aoe, mods, ver, rev)
+	local old = key and DEFAULTS[key]
+	if not old then   -- no suggested rotation behind them: you built them from nothing
+		if anySpell(st) or anySpell(aoe) or not sameMods(mods, nil) then return VS.Mine.Create(slot, "My rotation", st, aoe, "/startattack", mods), true end
+		return nil
+	end
+	if sameSeq(st, old.st) and sameSeq(aoe, old.aoe) and sameMods(mods, old.mods) then return nil end
+	local sameVersion = ver == DEFAULTS_VER and (rev or 0) == (old.rev or 0)
+	local head = old.healSelfLast and "" or ((old.macroHead or "/startattack\n"):gsub("\n+$", ""))
+	return VS.Mine.Create(slot, sameVersion and "My edits" or "My edits (before the update)", st, aoe, head, mods), sameVersion
+end
+local function migrateEdits(slot)
+	local db = VoidSequencerDB
+	if not (VS.Mine and slot and db) then return end
+	db.mineMigrated = db.mineMigrated or {}
+	if db.mineMigrated[slot] then return end
+	db.mineMigrated[slot] = true
+	local made, active
+	local seeded = type(db.seededSpec) == "string" and db.seededSpec or nil
+	if db.seqST and (not seeded or seeded:match("^[^:]+") == slot) then
+		local r, on = migrateOne(slot, seeded, db.seqST, db.seqAOE, db.mods, db.defaultsVer, db.seededRev)
+		if r then
+			made = r; if on then active = r end
+			-- the suggested lists go back to how they ship, so switching back to it gives the real one
+			local old = seeded and DEFAULTS[seeded]
+			db.seqST = old and copySeq(old.st) or { { "" } }
+			db.seqAOE = old and copySeq(old.aoe) or { { "" } }
+		end
+	end
+	-- edits kept for this spec while you played another one
+	for key, saved in pairs(db.specStash or {}) do
+		if type(key) == "string" and key:match("^[^:]+") == slot and type(saved) == "table" and saved.st then
+			local r, on = migrateOne(slot, key, saved.st, saved.aoe, saved.mods, saved.ver, saved.rev)
+			if r then
+				made = made or r
+				if on and not active then active = r end
+				db.specStash[key] = nil
+			end
+		end
+	end
+	if active then
+		VS.Mine.SetActive(slot, active.name)
+	elseif made then
+		C_Timer.After(8, function()
+			print("|cff9966ffVoidSequencer|r: the suggested rotation was updated. Your edited one is saved as |cffffd700"
+				.. made.name .. "|r: pick it under |cffffd700Rotation|r in /vseq to keep using it.")
+		end)
+	end
+end
+
 local function ApplySpec()
 	if not VoidSequencerDB then return end
 	VS.unsupportedSpec = nil
 	currentSpec = detectSpec()
+	-- your own rotations belong to the spec (WoW Forever: the class), whichever suggested one is picked
+	VS.mineSlot = type(currentSpec) == "string" and currentSpec:match("^[^:]+") or tostring(currentSpec)
+	migrateEdits(VS.mineSlot)
 	local specDef = DEFAULTS[currentSpec]
 	if specDef then
 		-- Your edits are kept per spec (and per rotation): the one you're leaving is
@@ -3349,6 +3705,7 @@ function VS.SetRotationPick(key)
 	VoidSequencerCharDB = VoidSequencerCharDB or {}
 	VoidSequencerCharDB.rotPick = VoidSequencerCharDB.rotPick or {}
 	VoidSequencerCharDB.rotPick[specID] = key
+	if VS.Mine and VS.mineSlot then VS.Mine.SetActive(VS.mineSlot, nil) end   -- a suggested one runs; yours are kept
 	ApplySpec()
 	PushMode()
 	ApplyEnabled()
