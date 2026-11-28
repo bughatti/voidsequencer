@@ -2170,6 +2170,11 @@ pacer:SetScript("OnEvent", function(_, event)
 	VoidSequencerDB = VoidSequencerDB or {}
 	if VoidSequencerDB.pacer == nil then VoidSequencerDB.pacer = true end
 	pacerRefresh()
+	-- the key light never takes the mouse in a fight (lockdown only starts after this event)
+	if event == "PLAYER_REGEN_DISABLED" and VS.keyLight then
+		VS.keyLight:EnableMouse(false)
+		VS.keyLight.hint:Hide()
+	end
 end)
 
 function VS.SetPacer(on)
@@ -2178,6 +2183,111 @@ function VS.SetPacer(on)
 	pacerRefresh()
 end
 function VS.GetPacer() return not (VoidSequencerDB and VoidSequencerDB.pacer == false) end
+
+-- ---------------------------------------------------------------------------
+-- Key press light (a CurseForge request, 2026-11-27): a small square that lights while the
+-- rotation key is down and stays lit for 1 second after the last press, so you can see at a
+-- glance whether key 1 is still firing (between packs in Mythic+). Off by default. Its own
+-- frame, never part of the secure button: it only hears the button's PostClick (insecure,
+-- after the cast), which gets down = true on key down and false on key up.
+-- Settings (per character): keyLight on/off, lightSize, lightColor {r,g,b}; position via VoidMove.
+-- ---------------------------------------------------------------------------
+local LIGHT_LINGER = 1.0
+local LIGHT_COLOR = { 1, 0.82, 0 }   -- gold until the player picks one
+local light = CreateFrame("Frame", "VoidSeqKeyLight", UIParent, "BackdropTemplate")
+light:SetFrameStrata("MEDIUM")
+light:SetSize(28, 28)
+-- starts just right of the ST / AoE switch (mid-screen it sat under the options window; in game 2026-11-28)
+light:SetPoint("LEFT", toggle, "RIGHT", 8, 0)
+light:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 2 })
+light:EnableMouse(false)   -- never eats a click in a fight; draggable only while the options are open
+light:Hide()
+light.hint = light:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+light.hint:SetPoint("TOP", light, "BOTTOM", 0, -2)
+light.hint:SetText("drag me")
+light.hint:Hide()
+VS.keyLight = light
+
+local lightHeld, lightLast = false, -10
+local function lightRGB()
+	local c = VoidSequencerDB and VoidSequencerDB.lightColor
+	if type(c) == "table" and c[1] then return c[1], c[2], c[3] end
+	return LIGHT_COLOR[1], LIGHT_COLOR[2], LIGHT_COLOR[3]
+end
+local function lightPaint(lit)
+	local r, g, b = lightRGB()
+	if lit then
+		light:SetBackdropColor(r, g, b, 0.95)
+		light:SetBackdropBorderColor(r, g, b, 1)
+	else
+		light:SetBackdropColor(0, 0, 0, 0.35)
+		light:SetBackdropBorderColor(r, g, b, 0.45)
+	end
+end
+-- runs only while lit: turns itself off once the key is up and the second has passed
+local function lightTick(self, elapsed)
+	self._t = (self._t or 0) + elapsed
+	if self._t < 0.05 then return end
+	self._t = 0
+	local idle = GetTime() - lightLast
+	if lightHeld and idle > 30 then lightHeld = false end   -- a lost key-up never sticks it on
+	if not lightHeld and idle >= LIGHT_LINGER then
+		lightPaint(false)
+		self:SetScript("OnUpdate", nil)
+	end
+end
+btn:HookScript("PostClick", function(_, _, down)
+	if not light:IsShown() then return end
+	lightLast = GetTime()
+	-- a wheel notch has no key-up: each notch is one tap
+	local k = VoidSequencerDB and VoidSequencerDB.key or ""
+	lightHeld = (down and not k:find("MOUSEWHEEL")) and true or false
+	lightPaint(true)
+	light:SetScript("OnUpdate", lightTick)
+end)
+
+function VS.GetKeyLight() return VoidSequencerDB and VoidSequencerDB.keyLight and true or false end
+-- shown when it's on and key 1 runs a rotation; the options panel makes it draggable
+function VS.RefreshKeyLight(editing)
+	if editing ~= nil then light.editing = editing end
+	local db = VoidSequencerDB
+	local on = db and db.keyLight and db.enabled and not VS.keyHeldEmpty and VS.HasRotation and VS.HasRotation()
+	local size = tonumber(db and db.lightSize) or 28
+	light:SetSize(size, size)
+	light:EnableMouse(on and light.editing and not InCombatLockdown() and true or false)
+	light.hint:SetShown(on and light.editing and true or false)
+	-- on top of the options window while you place it; back among the action bars after
+	light:SetFrameStrata((on and light.editing) and "FULLSCREEN_DIALOG" or "MEDIUM")
+	if on then
+		light:Show()
+		if not light:GetScript("OnUpdate") then lightPaint(false) end
+	else
+		light:SetScript("OnUpdate", nil)
+		light:Hide()
+	end
+end
+function VS.SetKeyLight(on)
+	VoidSequencerDB = VoidSequencerDB or {}
+	VoidSequencerDB.keyLight = on and true or false
+	VS.RefreshKeyLight()
+end
+function VS.SetKeyLightSize(size)
+	VoidSequencerDB.lightSize = math.max(12, math.min(96, math.floor(tonumber(size) or 28)))
+	VS.RefreshKeyLight()
+end
+function VS.SetKeyLightColor(r, g, b)
+	VoidSequencerDB.lightColor = (r and { r, g, b }) or nil   -- nil = back to gold
+	VS.RefreshKeyLight()
+end
+function VS.GetKeyLightColor() return lightRGB() end
+function VS.ResetKeyLight()
+	if VS.MoveReset then VS.MoveReset(light) end   -- forgets the saved spot too
+end
+-- dragged like every Void box; the spot is kept (VoidSequencerDB.positions.keyLight)
+if VS.Move then
+	VS.Move(light, { db = function() return VoidSequencerDB end, key = "keyLight", handle = false })
+	if VS.MoveHandle then VS.MoveHandle(light, light) end
+end
 
 -- ---------------------------------------------------------------------------
 -- Keybind handling. SetOverrideBindingClick must run out of combat; queue if
@@ -2340,6 +2450,8 @@ toggle:SetScript("OnEnter", function(self)
 	GameTooltip:SetOwner(self, "ANCHOR_TOP")
 	GameTooltip:SetText("|cffcc66ffVoidSequencer|r", 1, 1, 1)
 	GameTooltip:AddLine("Left-click: switch ST / AoE", 0.85, 0.85, 0.85)
+	local mk = VoidSequencerDB and VoidSequencerDB.modeKey
+	if mk then GameTooltip:AddLine("Or press " .. ((GetBindingText and GetBindingText(mk)) or mk), 0.85, 0.85, 0.85) end
 	GameTooltip:AddLine("Right-click + drag: move it", 0.7, 0.7, 0.7)
 	GameTooltip:AddLine("Options: minimap icon or /vseq", 0.7, 0.7, 0.7)
 	GameTooltip:Show()
@@ -2363,30 +2475,39 @@ do
 	bg:SetColorTexture(0, 0, 0, 0.35)
 	local msg = capture:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
 	msg:SetPoint("CENTER", 0, 80)
-	msg:SetText("|cffcc66ffVoidSequencer|r: press the key for your rotation\n"
-		.. "|cffaaaaaa(a key, the mouse wheel up or down, or mouse button 3, 4 or 5;\n"
-		.. "Alt / Ctrl / Shift combinations work too. Esc cancels.)|r")
+	-- the same overlay sets the rotation key and the mode switch key (capture.target)
+	capture:SetScript("OnShow", function(self)
+		msg:SetText("|cffcc66ffVoidSequencer|r: press the key for "
+			.. (self.target == "mode" and "switching ST / AoE" or "your rotation") .. "\n"
+			.. "|cffaaaaaa(a key, the mouse wheel up or down, or mouse button 3, 4 or 5;\n"
+			.. "Alt / Ctrl / Shift combinations work too. Esc cancels.)|r")
+	end)
 end
 local function withMods(key)
 	return (IsAltKeyDown() and "ALT-" or "") .. (IsControlKeyDown() and "CTRL-" or "")
 		.. (IsShiftKeyDown() and "SHIFT-" or "") .. key
 end
+local function deliver(key)
+	local target = capture.target
+	capture.target = nil
+	if target == "mode" then VS.SetModeKey(key) else VS.SetKey(key) end
+end
 capture:SetScript("OnKeyDown", function(self, key)
 	if key == "LSHIFT" or key == "RSHIFT" or key == "LCTRL" or key == "RCTRL"
 		or key == "LALT" or key == "RALT" or key == "UNKNOWN" then return end
 	self:Hide()
-	if key ~= "ESCAPE" then VS.SetKey(withMods(key)) end
+	if key ~= "ESCAPE" then deliver(withMods(key)) else capture.target = nil end
 end)
 capture:SetScript("OnMouseWheel", function(self, delta)
 	self:Hide()
-	VS.SetKey(withMods(delta > 0 and "MOUSEWHEELUP" or "MOUSEWHEELDOWN"))
+	deliver(withMods(delta > 0 and "MOUSEWHEELUP" or "MOUSEWHEELDOWN"))
 end)
 local MOUSE = { MiddleButton = "BUTTON3", Button4 = "BUTTON4", Button5 = "BUTTON5" }
 capture:SetScript("OnMouseDown", function(self, button)
 	local key = MOUSE[button]
 	if not key then return end   -- left / right click: keep waiting
 	self:Hide()
-	VS.SetKey(withMods(key))
+	deliver(withMods(key))
 end)
 
 -- ---- Shared API for sibling files (Minimap.lua / Options.lua) ----
@@ -2395,6 +2516,8 @@ function VS.GetKey() return VoidSequencerDB and VoidSequencerDB.key end
 function VS.SetKey(key)
 	if not key then return end
 	if InCombatLockdown() then print("|cffcc66ffVoidSequencer|r: leave combat to rebind.") return end
+	-- taking the mode switch key for the rotation: the mode switch lets go of it first
+	if VoidSequencerDB.modeKey == key and VS.SetModeKey then VS.SetModeKey(nil) end
 	local old = VoidSequencerDB.key
 	if old and old ~= key then
 		ReleaseKey(old)   -- gives the old key back what was bound there before
@@ -2409,8 +2532,61 @@ function VS.CaptureKey()
 		print("|cffcc66ffVoidSequencer|r: leave combat to rebind.")
 		return
 	end
+	capture.target = "rot"
 	capture:Show()
 end
+-- Mode switch key (a CurseForge request, 2026-11-27): one key of your choice that clicks the
+-- ST / AoE switch, so each press flips the mode (ST -> AoE -> PvP when the spec has one -> ST),
+-- in combat too: it is a real binding that clicks the secure switch (CLICK VoidSeqToggle), the
+-- same as clicking it with the mouse. Works with the on-screen switch hidden. Per character
+-- (VoidSequencerDB.modeKey); whatever was on the key before comes back when it's cleared.
+local pendingModeKey
+local function ReleaseModeKey(k)
+	if not k or k == "" or InCombatLockdown() then return end
+	local cur = GetBindingAction(k)
+	if not (cur and cur:find("VoidSeqToggle")) then return end   -- never clear a key that isn't ours
+	local orig = VoidSequencerDB and VoidSequencerDB.modeKeyOrig
+	if orig and orig ~= "" and not orig:find("VoidSeq") then SetBinding(k, orig) else SetBinding(k) end
+end
+local function ApplyModeKey()
+	local db = VoidSequencerDB
+	local k = db and db.modeKey
+	if not k or k == "" then return end
+	if InCombatLockdown() then pendingModeKey = true return end
+	if not db.enabled or VS.keyHeldEmpty then ReleaseModeKey(k) return end
+	local prev = GetBindingAction(k)
+	if prev and prev ~= "" and not prev:find("VoidSeq") then db.modeKeyOrig = prev end
+	SetBinding(k)
+	SetBindingClick(k, "VoidSeqToggle", "LeftButton")
+end
+VS.ApplyModeKey = ApplyModeKey
+VS.PendingModeKey = function() local p = pendingModeKey; pendingModeKey = nil; return p end
+function VS.GetModeKey() return VoidSequencerDB and VoidSequencerDB.modeKey end
+-- nil clears it
+function VS.SetModeKey(key)
+	if InCombatLockdown() then print("|cffcc66ffVoidSequencer|r: leave combat to rebind.") return end
+	if key and key == VoidSequencerDB.key then
+		print("|cffcc66ffVoidSequencer|r: that's your rotation key. Pick another key for the mode switch.")
+		return
+	end
+	local old = VoidSequencerDB.modeKey
+	if old and old ~= key then
+		ReleaseModeKey(old)
+		VoidSequencerDB.modeKeyOrig = nil   -- the new key records its own
+	end
+	VoidSequencerDB.modeKey = key
+	ApplyModeKey()
+	if VS.RefreshOptions then VS.RefreshOptions() end
+end
+function VS.CaptureModeKey()
+	if InCombatLockdown() then
+		print("|cffcc66ffVoidSequencer|r: leave combat to rebind.")
+		return
+	end
+	capture.target = "mode"
+	capture:Show()
+end
+
 -- Master enable/disable. On -> bind the key + show the mode toggle; off -> release
 -- the key (restoring its original binding) + hide the toggle. Binding changes are
 -- out-of-combat only, so a mid-fight toggle defers to PLAYER_REGEN_ENABLED.
@@ -2440,6 +2616,8 @@ local function ApplyEnabled()
 		ReleaseKey(VoidSequencerDB.key)
 		RegisterStateDriver(toggle, "visibility", "hide")
 	end
+	ApplyModeKey()        -- bound while key 1 runs a rotation, released with it
+	VS.RefreshKeyLight()
 end
 VS.ApplyEnabled = ApplyEnabled
 -- Does key 1 run anything for this character? A built-in rotation (WoW Forever's FOREVER_<CLASS>
@@ -4137,6 +4315,8 @@ ev:SetScript("OnEvent", function(_, event, unit)
 		if toggle.vsDragPending then toggle.vsDragPending = nil; VS.FinishToggleDrag(toggle) end
 		if pendingEnable then pendingEnable = nil; ApplyEnabled() end
 		if pendingKey then local k = pendingKey; pendingKey = nil; ApplyKey(k) end
+		if VS.PendingModeKey() then VS.ApplyModeKey() end
+		VS.RefreshKeyLight()   -- draggable again while the options are open
 		-- flush any rotation edits made during combat
 		if seqDirty then seqDirty = false; LoadSequences() end
 	end

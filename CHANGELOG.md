@@ -1,5 +1,10 @@
 # VoidSequencer Changelog
 
+## 1.4.0 — 2026-11-28
+
+- **Mode switch key.** Pick a key in `/vseq` (Mode switch key → Set Key) and each press flips the mode like clicking the ST / AoE switch: Single Target, AoE (and PvP when your build has one), then back. It works in combat and with the on-screen switch hidden. Any key or mouse button, alone or with Alt / Ctrl / Shift (the game can't bind Shift on its own). Clear gives the key back what it did before.
+- **Key press light.** An optional small square on screen that lights while your rotation key is down and stays lit for 1 second after your last press, so you can see at a glance whether you're still pressing it (no extra pull between packs). Turn it on in `/vseq`, drag it where you want it while the options are open, and pick its size and color under Look.
+
 ## 1.3.0 — 2026-11-28
 
 - **WoW Forever Rogue: battlegrounds with daggers.** A new talent build, **Subtlety daggers (battlegrounds)**: the build most WoW Forever Subtlety rogues run in battlegrounds. With dual specs, pick it while your second talent set is active.

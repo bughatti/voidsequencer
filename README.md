@@ -53,6 +53,8 @@ Don't like the suggested rotation? Make your own, completely. Every button has a
 ### Your Key, Your Call
 - **Enable toggle** — switch it off and key 1 goes back to whatever you had bound there.
 - **Any key or the mouse wheel** — Set Keybind takes a key, the mouse wheel (up or down: each notch is one press), mouse buttons 3-5, or an Alt / Ctrl / Shift combination.
+- **Mode switch key** — pick a second key and each press flips Single Target / AoE (and PvP when your build has one), like clicking the switch. Works in combat and with the on-screen switch hidden.
+- **Key press light** (optional) — a small square that lights while your rotation key is down and stays lit for 1 second after your last press, so you can see at a glance whether you're still pressing it. Drag it anywhere while the options are open; pick its size and color.
 - **Rotation check** — shows how many of the rotation's spells you have, like "6 of 9 spells, the rest join as you learn them".
 
 ---

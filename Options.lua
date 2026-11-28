@@ -94,8 +94,104 @@ end)
 -- gates the actual apply behind a hardware click on the talent frame, so we can't (and
 -- shouldn't) silently overwrite your talents. At lower level WoW trims to affordable
 -- points. A dropdown keeps the panel clean instead of a button per build.
+-- Mode switch key + key press light (CurseForge requests, 2026-11-27)
+local mkLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+mkLabel:SetPoint("TOPLEFT", kbLabel, "BOTTOMLEFT", 0, -16)
+mkLabel:SetText("Mode switch key:")
+
+local mkButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+mkButton:SetSize(80, 22)
+mkButton:SetPoint("LEFT", mkLabel, "RIGHT", 10, 0)
+mkButton:SetText("Set Key")
+
+local mkClear = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+mkClear:SetSize(54, 22)
+mkClear:SetPoint("LEFT", mkButton, "RIGHT", 4, 0)
+mkClear:SetText("Clear")
+
+local mkCurrent = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+mkCurrent:SetPoint("LEFT", mkClear, "RIGHT", 10, 0)
+mkCurrent:SetWidth(110)
+mkCurrent:SetJustifyH("LEFT")
+mkCurrent:SetWordWrap(false)
+
+mkButton:SetScript("OnClick", function()
+	mkCurrent:SetText("|cffffff00press a key...|r")
+	if VS.CaptureModeKey then VS.CaptureModeKey() end
+end)
+mkClear:SetScript("OnClick", function() if VS.SetModeKey then VS.SetModeKey(nil) end end)
+local function modeKeyTip(self)
+	GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+	GameTooltip:AddLine("Mode switch key")
+	GameTooltip:AddLine("Each press flips the mode, like clicking the ST / AoE switch: Single Target, AoE"
+		.. " (and PvP when your build has one), then back. Works in combat, and with the switch hidden.", 1, 1, 1, true)
+	GameTooltip:AddLine("A key on its own or with Alt / Ctrl / Shift. The game can't bind Shift alone."
+		.. " Clear gives the key back what it did before.", 0.7, 0.7, 0.7, true)
+	GameTooltip:Show()
+end
+mkButton:SetScript("OnEnter", modeKeyTip)
+mkButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+local lightCB = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+lightCB:SetPoint("LEFT", mkLabel, "LEFT", 380, 0)
+lightCB.Text:SetText("Key press light")
+lightCB.Text:SetFontObject("GameFontHighlight")
+lightCB:SetScript("OnClick", function(self)
+	if VS.SetKeyLight then VS.SetKeyLight(self:GetChecked()) end
+	if VS.RefreshKeyLight then VS.RefreshKeyLight(panel:IsShown()) end
+end)
+lightCB:SetScript("OnEnter", function(self)
+	GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+	GameTooltip:AddLine("Key press light")
+	GameTooltip:AddLine("A small square on screen that lights while your rotation key is down and stays lit"
+		.. " for 1 second after your last press, so you can see whether you're still pressing it.", 1, 1, 1, true)
+	GameTooltip:AddLine("Drag it where you want it while this window is open. Size and color: the button beside it.", 0.7, 0.7, 0.7, true)
+	GameTooltip:Show()
+end)
+lightCB:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+local LIGHT_SIZES = { { "Small", 20 }, { "Medium", 28 }, { "Large", 40 }, { "Huge", 60 } }
+local LIGHT_COLORS = {
+	{ "Gold", 1, 0.82, 0 }, { "Green", 0.25, 1, 0.4 }, { "Red", 1, 0.25, 0.25 },
+	{ "Blue", 0.2, 0.6, 1 }, { "Purple", 0.8, 0.4, 1 }, { "White", 1, 1, 1 },
+}
+local lightMenu = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+lightMenu:SetSize(70, 22)
+lightMenu:SetPoint("LEFT", lightCB.Text, "RIGHT", 8, 0)
+lightMenu:SetText("Look...")
+lightMenu:SetScript("OnClick", function(self)
+	MenuUtil.CreateContextMenu(self, function(owner, root)
+		root:CreateTitle("Size")
+		for _, s in ipairs(LIGHT_SIZES) do
+			root:CreateRadio(s[1], function() return (tonumber(VoidSequencerDB.lightSize) or 28) == s[2] end,
+				function() VS.SetKeyLightSize(s[2]) end)
+		end
+		root:CreateDivider()
+		root:CreateTitle("Color")
+		for _, c in ipairs(LIGHT_COLORS) do
+			root:CreateRadio(c[1], function()
+				local r, g, b = VS.GetKeyLightColor()
+				return math.abs(r - c[2]) < 0.01 and math.abs(g - c[3]) < 0.01 and math.abs(b - c[4]) < 0.01
+			end, function() VS.SetKeyLightColor(c[2], c[3], c[4]) end)
+		end
+		if ColorPickerFrame and ColorPickerFrame.SetupColorPickerAndShow then
+			root:CreateButton("Any color...", function()
+				local r, g, b = VS.GetKeyLightColor()
+				local function apply()
+					local nr, ng, nb = ColorPickerFrame:GetColorRGB()
+					VS.SetKeyLightColor(nr, ng, nb)
+				end
+				ColorPickerFrame:SetupColorPickerAndShow({ r = r, g = g, b = b, hasOpacity = false,
+					swatchFunc = apply, cancelFunc = function() VS.SetKeyLightColor(r, g, b) end })
+			end)
+		end
+		root:CreateDivider()
+		root:CreateButton("Put it back by the switch", function() VS.ResetKeyLight() end)
+	end)
+end)
+
 local buildLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-buildLabel:SetPoint("TOPLEFT", kbLabel, "BOTTOMLEFT", 0, -16)
+buildLabel:SetPoint("TOPLEFT", mkLabel, "BOTTOMLEFT", 0, -16)
 buildLabel:SetText("Recommended talent build:")
 
 local buildButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
@@ -822,6 +918,11 @@ local function RefreshOptions()
 	if VS.GetEnabled then enableCB:SetChecked(VS.GetEnabled()) end
 
 	if VS.GetPacer then pacerCB:SetChecked(VS.GetPacer()) end
+	local mk = VS.GetModeKey and VS.GetModeKey()
+	mkCurrent:SetText(mk and ("|cff55ff55" .. ((GetBindingText and GetBindingText(mk)) or mk) .. "|r") or "|cff888888none|r")
+	mkClear:SetEnabled(mk and true or false)
+	if VS.GetKeyLight then lightCB:SetChecked(VS.GetKeyLight()) end
+	lightMenu:SetEnabled(VS.GetKeyLight and VS.GetKeyLight() or false)
 	switchCB:SetChecked(not (VoidSequencerDB and VoidSequencerDB.switchHidden))
 	RefreshBuildButtons()
 	RefreshRotationButton()
@@ -832,6 +933,10 @@ VS.RefreshOptions = RefreshOptions
 panel:SetScript("OnShow", function()
 	RefreshOptions()
 	RefreshAll()
+	if VS.RefreshKeyLight then VS.RefreshKeyLight(true) end    -- the light can be dragged while this is open
+end)
+panel:SetScript("OnHide", function()
+	if VS.RefreshKeyLight then VS.RefreshKeyLight(false) end
 end)
 
 -- ---------------------------------------------------------------------------
