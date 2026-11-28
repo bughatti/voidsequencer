@@ -11,6 +11,7 @@
     <Script file="Pages\Combat.lua"/>
     <Script file="Pages\Dungeons.lua"/>
     <Script file="Pages\PvP.lua"/>
+    <Script file="Pages\Honor.lua"/>
     <Script file="Pages\Other.lua"/>
     <Script file="Pages\Seq.lua"/>
     <Script file="Pages\Start.lua"/>

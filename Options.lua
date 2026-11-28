@@ -225,8 +225,10 @@ rotButton:SetScript("OnClick", function(self)
 	MenuUtil.CreateContextMenu(self, function(owner, root)
 		root:CreateTitle("Suggested (comes with VoidSequencer, updated by us)")
 		if #choices > 0 then
-			root:CreateRadio("Automatic (matches your hero tree)", function() return not mineName and pick == nil end,
-				function() VS.SetRotationPick(nil) end)
+			if not VS.IS_FOREVER then   -- WoW Forever has no hero trees: just the class rotations (damage, tank)
+				root:CreateRadio("Automatic (matches your hero tree)", function() return not mineName and pick == nil end,
+					function() VS.SetRotationPick(nil) end)
+			end
 			for _, c in ipairs(choices) do
 				root:CreateRadio(c.label, function() return not mineName and pick == c.key end, function() VS.SetRotationPick(c.key) end)
 			end

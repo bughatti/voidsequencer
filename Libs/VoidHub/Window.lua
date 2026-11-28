@@ -77,7 +77,11 @@ local ADDONS = {
       desc = "Records boss events so Raid tools' alerts know what really happens." },
     { name = "VoidPug",        label = "Pug tracker",   group = 5, games = "r",  cf = 1544051, icon = "Interface\\Icons\\INV_Misc_GroupNeedMore",
       desc = "Pug raid lockouts, and never lose a good pug leader." },
-    { name = "VoidBounty",     label = "Bounties",      group = 6, games = "f",  cf = 1798589, icon = "Interface\\Icons\\INV_Misc_Bone_HumanSkull_01",
+    -- not on CurseForge yet (cf = nil): listed only where it's installed
+    { name = "VoidHonor",      label = "PvP rank",      group = 6, games = "f",  cf = nil,     icon = "Interface\\Icons\\INV_BannerPVP_02",
+      desc = "Your PvP rank, this week's Rank Points cap, the Field of Honor weeklies, what every battleground really gave, and world PvP: enemies nearby, who killed you, sightings shared with your side." },
+    -- foldedInto: moved into that addon (11-27); its tab hides while that one is running
+    { name = "VoidBounty",     label = "Bounties",      group = 6, games = "f",  cf = 1798589, foldedInto = "VoidHonor", icon = "Interface\\Icons\\INV_Misc_Bone_HumanSkull_01",
       desc = "World PvP: enemy players nearby, who killed you, and bounty writs." },
     { name = "VoidScout",      label = "Scout",         group = 6, games = "fr", cf = 1586298, icon = "Interface\\Icons\\INV_Misc_Spyglass_02",
       desc = "Player and group scores for the group finder." },
@@ -219,7 +223,10 @@ local function groupsHere()
     local out = {}
     for gi, name in ipairs(GROUPS) do
         local list = {}
-        for _, a in ipairs(ADDONS) do if a.group == gi and forThisGame(a) then list[#list + 1] = a end end
+        for _, a in ipairs(ADDONS) do
+            if a.group == gi and forThisGame(a) and (a.cf or State(a) ~= "missing")
+                and not (a.foldedInto and State({ name = a.foldedInto }) == "on") then list[#list + 1] = a end
+        end
         if #list > 0 then out[#out + 1] = { index = gi, name = name, addons = list } end
     end
     return out

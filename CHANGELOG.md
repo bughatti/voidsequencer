@@ -1,5 +1,12 @@
 # VoidSequencer Changelog
 
+## 1.3.0 — 2026-11-28
+
+- **WoW Forever Rogue: battlegrounds with daggers.** A new talent build, **Subtlety daggers (battlegrounds)**: the build most WoW Forever Subtlety rogues run in battlegrounds. With dual specs, pick it while your second talent set is active.
+- **PvP mode plays Subtlety for you.** With Hemorrhage talented, the PvP switch opens from Stealth with Premeditation and Cheap Shot, builds with Hemorrhage, keeps Ghostly Strike and Shank going, finishes with Eviscerate, and uses Cold Blood and Blood Fury on cooldown. Your sword set keeps its own PvP rotation; swapping talent sets swaps it on its own.
+- **No more stuck key on WoW Forever.** A key press there stops at the first spell that can't go off, so every cooldown now has its own press and a plain strike always follows. A dodged or parried strike no longer leaves you pressing a finisher with no combo points.
+- **Works with VoidBars 1.4.0:** switching to PvP mode can swap your other keys and your gear to a PvP setup.
+
 ## 1.2.1 — 2026-11-25
 
 - **VoidHub window (WoW Forever):** right-click the VoidHub minimap button (or type /vhub) for every Void addon in one window: quests, layers, gear, gold, professions, combat, dungeons and more, each drawn from its own addon, with a Start page for what to do right now. Addons you don't have show a screenshot and how to get them. Shift + right-click opens Copy settings from another character. It comes inside every Void addon: nothing extra to install.

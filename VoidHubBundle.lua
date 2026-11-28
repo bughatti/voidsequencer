@@ -111,7 +111,7 @@ do
             { "VoidFrames", "Party frames", 4 }, { "VoidCheatSheet", "Cheat sheets", 4, true },
             { "VoidRaidTools", "Raid tools", 4, true }, { "VoidRaidToolsReader", "VRT reader", 4, true },
             { "VoidDice", "Dice", 4 }, { "VoidComp", "Comp tool", 4 },
-            { "VoidBounty", "Bounties", 5 }, { "VoidScout", "Scout", 5 }, { "VoidPug", "Pug tracker", 5 },
+            { "VoidHonor", "PvP rank", 5 }, { "VoidBounty", "Bounties", 5 }, { "VoidScout", "Scout", 5 }, { "VoidPug", "Pug tracker", 5 },
             { "VoidLFG", "Group finder", 5 }, { "VoidWatcher", "Watcher", 5 },
             { "VoidCalendar", "Calendar", 6 }, { "VoidAsk", "Ask", 6 }, { "VoidUI", "UI", 6 },
         }
@@ -527,6 +527,7 @@ local KNOWN_VOID_ADDONS = {
     { name = "VoidAlert",      label = "Alerts",            desc = "Custom on-screen alerts for combat events." },
     { name = "VoidBags",       label = "Bags",              public = true, desc = "Smart bag organizer with auto-categorization, cross-character tracking, and one-click merchant tools." },
     { name = "VoidBars",       label = "Action Bars",       public = true, desc = "Action bars with smart Consumables, Travel and Professions bars, profiles and layout presets." },
+    { name = "VoidHonor",      label = "PvP Rank",          desc = "WoW Forever PvP: your rank, this week's Rank Points cap, the Field of Honor weeklies and what every battleground gave." },
     { name = "VoidBounty",     label = "Bounties",          desc = "WoW Forever world PvP: enemy players nearby, the players who killed you, and writs paid in vendor goods." },
     { name = "VoidCalendar",   label = "Calendar",         public = true, desc = "A Void-themed calendar replacement that shows every event in your own time zone." },
     { name = "VoidCheatSheet", label = "Cheat Sheets",      public = true, desc = "In-game cheat sheets for every Midnight raid, the full Mythic+ pool, and delve bosses, auto-pops on pull." },

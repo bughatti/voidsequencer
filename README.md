@@ -44,6 +44,12 @@ Don't like the suggested rotation? Make your own, completely. Every button has a
 - **Share as text** — export a rotation and paste it in Discord or to a friend; they import it in one click. Plain readable text, so anyone can check what it casts.
 - **Rename, delete, restore** — and "Restore suggested steps" puts the suggested steps back into your copy.
 
+### WoW Forever: Rogue Battlegrounds
+- **A battleground talent build** — "Subtlety daggers (battlegrounds)" in the build list: the build most WoW Forever Subtlety rogues run in battlegrounds. With dual specs, pick it while your second talent set is active.
+- **PvP mode plays it for you** — set the switch to PvP and key 1 opens from Stealth with Premeditation and Cheap Shot, builds with Hemorrhage, keeps Ghostly Strike and Shank going, and finishes with Eviscerate, with Cold Blood and Blood Fury used on cooldown. Your sword set keeps its own rotation.
+- **Made for how WoW Forever casts** — on WoW Forever a key press stops at the first spell that can't go off, so every cooldown gets its own press and a dodged or parried strike never leaves the key stuck.
+- **With VoidBars** — switching to PvP mode can also swap your other keys and your gear to a PvP setup.
+
 ### Your Key, Your Call
 - **Enable toggle** — switch it off and key 1 goes back to whatever you had bound there.
 - **Any key or the mouse wheel** — Set Keybind takes a key, the mouse wheel (up or down: each notch is one press), mouse buttons 3-5, or an Alt / Ctrl / Shift combination.

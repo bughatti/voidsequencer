@@ -104,7 +104,7 @@ local function SoonBuild(host)
     return P
 end
 
-local function BountySettings(host)
+local function BountySettingsBlocks()
     local H = BH()
     local items = {}
     for _, o in ipairs(H.Options()) do
@@ -122,15 +122,18 @@ local function BountySettings(host)
         end
         items[#items + 1] = { "check", label, get, set, tip }
     end
-    return K.SettingsPage(host, {
-        { title = "Settings (this character)", items = items },
+    return {
+        { title = "World PvP (this character)", items = items },
         { title = "Try it", items = {
             { "button", "Test the warning", function() H.Test() end, "A made-up Marked enemy \"Test Dummy\" near you for 25 seconds." },
             { "button", "Mark my target", function() H.MarkTarget() end, "Puts the enemy player you have targeted on your Blood debts list: the warning goes red when they're near." },
-            { "note", "Enemy players are seen from nameplates, your target and your mouse, in the open world (battlegrounds hide who players are). Whoever kills you goes on Blood debts by itself. Other VoidBounty players of your side share what they see.", h = 70 },
+            { "note", "Enemy players are seen from nameplates, your target and your mouse, in the open world (battlegrounds hide who players are). Whoever kills you goes on Blood debts by itself. Other Void players of your side share what they see.", h = 70 },
         } },
-    }, 420)
+    }
 end
+local function BountySettings(host) return K.SettingsPage(host, BountySettingsBlocks(), 420) end
+-- VoidHonor's page (Pages/Honor.lua) carries these since VoidBounty moved into it (2026-11-27)
+ns.BountyList, ns.BountySettingsBlocks = BountyList, BountySettingsBlocks
 
 local BOUNTY_LABEL = { sightings = "Sightings", debts = "Blood debts", hall = "Most wanted", hunts = "My hunts", ledger = "Ledger" }
 ns.RegisterPage("VoidBounty", {

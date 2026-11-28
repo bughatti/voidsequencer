@@ -162,6 +162,14 @@ local OUTLAW_CORE = "/castsequence reset=combat Sinister Strike, Sinister Strike
 -- PvP mode: no Slice and Dice (player fights are short burst), Eviscerate after 3 strikes.
 local FOREVER_ROGUE_PVP = "/castsequence reset=target/combat Sinister Strike, Sinister Strike, "
 	.. "Sinister Strike, Eviscerate"
+-- Subtlety daggers in battlegrounds (the user, 2026-11-27: "i want the rotation to be what the top rogs are doing").
+-- Measured from our battleground combat logs (32 level-60 Sub rogues, 957 casts; 8 strong players = 50+ BGs and 60%+
+-- won, 322 casts): Hemorrhage is the builder (a third of all their casts), Ghostly Strike about once per 8-9
+-- Hemorrhages (on cooldown), Shank used; Eviscerate is the finisher (strong: 29 of 45 finishers, Kidney Shot 8 by
+-- hand, Rupture / Slice and Dice rare) after 3-6 builders; openers from Stealth: Cheap Shot (Premeditation first),
+-- Ambush rare; Cold Blood always straight into Eviscerate, Preparation into Vanish (both kept on the player's keys).
+-- The same order text on every step: identical /castsequence lines share their place, so it advances on most presses.
+local FOREVER_ROGUE_HEMO = "/castsequence [nostealth] reset=target/combat Hemorrhage, Hemorrhage, Hemorrhage, Eviscerate"
 -- Two forms of each core. The guarded one ([nostealth]: never breaks Stealth) is for steps
 -- with no opener. The plain one follows the [stealth] Cheap Shot line, which already takes
 -- the press in Stealth; leaving its guard off keeps that step + the /stopattack tail
@@ -245,6 +253,40 @@ local HAVOC_META = "/cast [@player] Metamorphosis"
 -- Ferocious Bite is the base name, so a Ravage proc casts Ravage.
 local FERAL_CORE = "/castsequence reset=combat Rake, Shred, Shred, Shred, Rip, Shred, Shred, Shred, Shred, "
 	.. "Ferocious Bite, Rake, Shred, Shred, Shred, Ferocious Bite"
+
+-- WoW Forever Paladin, Protection for leveling as a TANK (2026-11-25, the user: "my intent with this Paladin is to tank
+-- with it, not DPS"). Forever's trees are reworked: node IDs and ranks from Blizzard's API (talent-tree 1100,
+-- static-forever-us), in BUY ORDER (the stager buys down the list and comes back to anything still gated; 5 points
+-- per row, like the rogue build). 51 points, 0/35/16.
+-- Checked 2026-11-25 against real paladin tanks: the 59 Protection paladins (shield, Holy Shield) in our own
+-- WoW Forever combat logs, their talents read from Blizzard's profile API. The 22 at level 60 all have the same
+-- Protection core, and the single most common full build (8 of 22) is exactly this one: Toughness 3 (not 5), and
+-- the last 16 points in Retribution (Deflection, Improved / Sanctified Judgement, Conviction, Pursuit of Justice,
+-- Sacred Arbiter), not Holy. The order follows the leveling tanks (40-59): Protection up to Shieldsworn first
+-- (Anticipation 1 opens row 7), then Retribution, the rest of Anticipation last.
+local PALADIN_TANK_BUILD = { name = "Protection (tank leveling)", build = {
+	{ 105626, 5 },   -- Redoubt: hits on you can give +30% block (row 1)
+	{ 105638, 3 },   -- Precision: +3% hit, fewer misses = steadier threat (row 2)
+	{ 105632, 2 },   -- Sacred Duty: Divine Protection / Templar's Bulwark 60 s sooner (row 2)
+	{ 110874, 2 },   -- Shield Specialization: blocks absorb 30% more and give 4% mana back (row 3)
+	{ 105630, 3 },   -- Toughness: +6% armor from items (row 3)
+	{ 105625, 1 },   -- Templar's Bulwark: an absorb shield = 100% of your health, 8 s (row 3)
+	{ 105634, 3 },   -- Improved Righteous Fury: 9% less damage taken while Righteous Fury is up (row 4)
+	{ 110878, 1 },   -- Swift Judgement: a second Judgement on its own cooldown (row 4)
+	{ 105628, 1 },   -- Holy Shield: +30% block, Holy damage per block, +20% threat (row 5, level 30)
+	{ 105627, 5 },   -- Reckoning: extra attacks after blocks and crits taken (row 5)
+	{ 110879, 3 },   -- Iron Creed: Holy Strike +30% threat, and 6% less damage taken with Righteous Fury (row 6)
+	{ 105636, 1 },   -- Anticipation 1: the 30th point, opens row 7
+	{ 110875, 1 },   -- Shieldsworn: Holy Strike hits with your shield, 4 s shorter cooldown (row 7, level 40)
+	{ 105707, 5 },   -- Deflection (Retribution row 1): +5% parry
+	{ 105705, 2 },   -- Improved Judgement: Judgement 2 s shorter cooldown (row 2)
+	{ 105701, 3 },   -- Sanctified Judgement: Judgement gives back 60% of the seal's mana (row 2)
+	{ 105703, 3 },   -- Conviction: +6% crit (row 2)
+	{ 105699, 2 },   -- Pursuit of Justice: +15% movement speed (row 3)
+	{ 105700, 1 },   -- Sacred Arbiter: Holy Strike +20% damage and refreshes Judgements (row 4)
+	{ 105636, 5 },   -- Anticipation: the rest, +20 defense
+} }
+
 local DEFAULTS = {
 	-- WoW Forever Paladin, leveling 1-60 (no specs in Forever; keyed by class).
 	-- Built from Forever leveling guides (Oct 2026). Forever changes
@@ -264,6 +306,7 @@ local DEFAULTS = {
 	-- One step = priority mode either way (mash-safe). Swap the seal to Seal of Command
 	-- in the editor once you talent it.
 	["FOREVER_PALADIN"] = {
+		label = "Paladin: damage (WoW Forever)",
 		rev = 1,   -- 1: seal sequence also resets on leaving combat (re-seeds saved copies)
 		mods = { alt = "Holy Light", ctrl = "Divine Protection" },
 		st = {
@@ -272,6 +315,55 @@ local DEFAULTS = {
 		aoe = {
 			{ "Judgement", "/castsequence reset=28/combat Seal of Righteousness, null", "Consecration", "Holy Strike", "Hammer of Wrath" },
 		},
+		builds = { PALADIN_TANK_BUILD },
+	},
+	-- WoW Forever Paladin TANK (2026-11-25, the user, Undead paladin at 9: "i want to level this Paladin as a tank. I
+	-- don't want to level it as a DPS"). Picked in the Rotation menu next to the damage one (WoW Forever rotation
+	-- choices, FOREVER_<CLASS>:<variant>; the pick is per character). Paladins have no taunt here: threat comes from
+	-- Holy damage, so the seal stays up, Judgement (off the GCD) and Swift Judgement go out on cooldown, Holy Shield
+	-- (talent, 10 s, 4 charges) is kept up, Holy Strike is the main strike (Iron Creed: +30% threat and 6% less damage
+	-- taken; Shieldsworn: hits with the shield), Consecration for packs. Spell names checked against the game's own
+	-- SpellName table (wago DB2 build 1.60.1.70959); spells not learned yet are trimmed out of each press.
+	-- Shift = Righteous Fury (a 30-minute buff, too long to cast on every press), Ctrl = Divine Protection, Alt = Holy
+	-- Light.
+	-- rev 2 (2026-11-25, measured on the busiest level-60 paladin tanks in our own combat logs): they never cast Seal
+	-- of Righteousness, they tank in SEAL OF FURY (learned at 10, ranks at 18/26/34/42/50/58 in SkillLineAbility /
+	-- SpellLevels). It lasts 30 s and Judgement does NOT use it up (2-3 Judgements per seal in the log), so the
+	-- "Seal, null" upkeep stays. Their casts: Judgement > Holy Strike > Holy Shield ~ Consecration > Swift Judgement,
+	-- a few Hammer of Wrath, no Exorcism at all (undead/demons only), so Exorcism is out.
+	-- rev 3: the same tanks never cast Divine Protection; their big defensive is Templar's Bulwark (16 casts, an
+	-- absorb = 100% of your health). Ctrl = Bulwark, Divine Protection until you take it (talent point 16, level 25).
+	-- Pulls in the log: seal, then Judgement, then Holy Strike / Consecration / Holy Shield -- what key 1 does.
+	-- Hammer of Wrath is out too: the rarest cast in their logs (11, one tank), and with it the level-44+ macro ran
+	-- ~264 characters, over the 255 limit, which drops the Alt / Ctrl / Shift lines. Now ~242 at 60.
+	["FOREVER_PALADIN:Tank"] = {
+		label = "Paladin: tank (WoW Forever)",
+		-- hidden from the Rotation menu until tested in game (the user, 2026-11-28 release: "Hide it for now"; Codex: the
+		-- "Seal, null" upkeep below never re-seals in a fight longer than ~30 s, because reset=28 counts time WITHOUT a
+		-- press). A character that already picked it keeps it.
+		hidden = true,
+		-- rev 4 (the user, 2026-11-26): no held-modifier spells. He plays keys 1-7 and Shift+1-7 only, so Alt / Ctrl
+		-- never fired and Shift+1 held Righteous Fury, a 30-minute buff ("I don't think things like buffs should be in
+		-- the key bindings"). Bulwark, Divine Protection and Holy Light get their own keys (VoidBars Suggest); buffs go
+		-- on another bar.
+		-- rev 5 (release review, 2026-11-28, Codex Sol + the rule measured on the user's rogue the same night): on WoW
+		-- Forever any failed on-GCD cast ENDS the press, and Holy Shield, Holy Strike and Consecration are all on the GCD
+		-- with their own cooldowns (SpellCooldowns: StartRecoveryTime 1500; 10 / 10 / 8 s). In one step, Holy Shield on
+		-- cooldown stopped Holy Strike and Consecration from ever going out. Now each has its own press; Judgement and
+		-- Swift Judgement (off the GCD) and the seal upkeep (a "Seal, null" order: null is never tried) lead every press.
+		rev = 5,
+		mods = {},
+		st = {
+			{ "Judgement", "Swift Judgement", "/castsequence reset=28/combat Seal of Fury, null", "Holy Strike" },
+			{ "Judgement", "Swift Judgement", "/castsequence reset=28/combat Seal of Fury, null", "Holy Shield" },
+			{ "Judgement", "Swift Judgement", "/castsequence reset=28/combat Seal of Fury, null", "Consecration" },
+		},
+		aoe = {
+			{ "Judgement", "Swift Judgement", "/castsequence reset=28/combat Seal of Fury, null", "Consecration" },
+			{ "Judgement", "Swift Judgement", "/castsequence reset=28/combat Seal of Fury, null", "Holy Shield" },
+			{ "Judgement", "Swift Judgement", "/castsequence reset=28/combat Seal of Fury, null", "Holy Strike" },
+		},
+		builds = { PALADIN_TANK_BUILD },
 	},
 	-- WoW Forever Rogue, leveling 1-60 with swords (Combat). From the Forever leveling guides
 	-- (Oct 2026): Sinister Strike builds, Slice and Dice is kept up, Eviscerate finishes,
@@ -316,7 +408,8 @@ local DEFAULTS = {
 		-- Cheap Shot stays plain [stealth] here (PvP mode's opener); the PvE steps use FOREVER_ROGUE_STEALTH (rev 10).
 		cond = { ["Cheap Shot"] = "[stealth]", ["Sinister Strike"] = "[nostealth]", ["Blade Flurry"] = "[nostealth]",
 			["Blood Fury"] = "[harm,nodead]", ["Shank"] = "[nostealth]", ["Ambush"] = "[stealth]",
-			["Backstab"] = "[nostealth]" },
+			["Backstab"] = "[nostealth]", ["Hemorrhage"] = "[nostealth]", ["Ghostly Strike"] = "[nostealth]",
+			["Premeditation"] = "[stealth,harm,nodead]", ["Cold Blood"] = "[harm,nodead]" },
 		-- Key 1 no longer enters Stealth (user, 2026-11-08: "take stealth off my rotation";
 		-- it had since 2026-11-01). Stealth is the player's own key now. /startattack only
 		-- when not stealthed: in Stealth the press still opens (Ambush / Cheap Shot) without
@@ -368,6 +461,36 @@ local DEFAULTS = {
 			{ "Backstab" },
 			{ "Shank" },
 		},
+		-- With Hemorrhage learned (the Subtlety daggers set, 2026-11-27): the battleground rotation of the Sub rogues
+		-- we measured (see FOREVER_ROGUE_HEMO). Picked when the spellbook changes, so swapping talent sets swaps key 1's
+		-- PvP rotation too; the Combat set keeps the one above. Like the sword one, every other press is a plain strike
+		-- outside the order (Ghostly Strike when it's up, else Hemorrhage): a Kidney Shot by hand can't leave the order
+		-- firing a 1-point Eviscerate, and the extra strikes push Eviscerate toward 5 points (the strong players: 3-6
+		-- builders). Step 3 ends on a plain Hemorrhage: at 0 combo points its Eviscerate fails and the press builds
+		-- instead (the rev 9 stall). Step 1 has no room for that line: at ~236 of the 255 characters with the head and the
+		-- /stopattack [stealth] tail (with it: ~265, and the tail would be cut). Premeditation only in Stealth on a target.
+		-- rev 2 (the user's first fight, 2026-11-28 combat log, "it does show errors saying you need combo points"): three
+		-- parried Hemorrhages advanced the order to Eviscerate at 0 points, and then nothing built for 10 s: on Forever an
+		-- ON-GCD spell failing "Not yet recovered" (Ghostly Strike, Shank on their own cooldown) ENDS the press, so the
+		-- Hemorrhage lines after them never ran (energy 82-110). Off-GCD spells failing (Blood Fury, Premeditation) don't
+		-- end it. Now: Ghostly Strike and Shank each have their own press; a plain Hemorrhage press always builds (a
+		-- 0-point Eviscerate gets its point back on the next press); the opener sits on every press, so any press in
+		-- Stealth opens at once (out of Stealth the [stealth] lines aren't even tried).
+		-- rev 3 (the user, 2026-11-28: "click as few buttons as possible outside of 1"): Cold Blood goes out on cooldown
+		-- (off the GCD: SpellCooldowns StartRecoveryTime 0, so its cooldown-fail doesn't end the press); in Forever
+		-- Hemorrhage can't use it up, so it waits for the next Eviscerate. Measured in his next hour: 17 Cold Bloods, all
+		-- 17 onto an Eviscerate. Steps 1 / 3 have no room for it (236 of 255 characters).
+		-- rev 4: Ghostly Strike -> Ambush taken out again. Forever lets Ambush skip Stealth for 7 s after Ghostly Strike,
+		-- but an Ambush line that fails ("Must be in Stealth" 514x, "must be behind" 23x in that hour) ENDS the press like
+		-- a cooldown-fail does: Shank went from 88 casts an hour to 0 and the plain Hemorrhage press was blocked, so
+		-- 0-point Eviscerates came back (50); Ambush itself landed 3 times in 56 Ghostly Strike windows.
+		pvpWhen = { { spell = "Hemorrhage", seq = {
+			{ "Blood Fury", "Premeditation", "Cheap Shot", FOREVER_ROGUE_HEMO },
+			{ "Premeditation", "Cheap Shot", "Cold Blood", "Hemorrhage" },
+			{ "Blood Fury", "Premeditation", "Cheap Shot", FOREVER_ROGUE_HEMO },
+			{ "Premeditation", "Cheap Shot", "Ghostly Strike" },
+			{ "Premeditation", "Cheap Shot", "Cold Blood", "Shank" },
+		} } },
 		-- Talents (2026-11-05). Forever's trees are reworked (not Classic's), and there are no
 		-- top players to copy yet, so this is built from what each talent does for a sword
 		-- Sinister Strike -> Eviscerate leveler on a PvP realm. Node IDs and ranks are from
@@ -400,6 +523,39 @@ local DEFAULTS = {
 				{ 113398, 5 },   -- Lightning Reflexes: +5% dodge
 				{ 105722, 5 },   -- Malice (Assassination): +5% crit
 				{ 105721, 3 },   -- Ruthlessness: finishers may add a combo point
+			} },
+			-- The user, 2026-11-27 (dual spec bought, "you build it in seq and i select while i am on my secondary
+			-- build"): the battleground Sub daggers set real Forever rogues run. Measured: 37 level-60 Sub sets
+			-- (our BG logs -> Blizzard's profile API, every talent set); this exact 16/7/28 is the most common (5
+			-- players, among them the one with the most honorable kills, 121 of 192 BGs won). Pick it while the
+			-- second talent set is active: it fills the active set. Rows open at 5 points per row, so each tree is
+			-- listed row by row; Subtlety first. Key 1's PvP rotation switches to Hemorrhage with it (pvpWhen).
+			{ name = "Subtlety daggers (battlegrounds)", build = {
+				{ 105760, 3 },   -- Opportunity (row 1)
+				{ 105761, 2 },   -- Master of Deception
+				{ 105745, 2 },   -- Dirty Deeds (row 2)
+				{ 105749, 3 },   -- Improved Ambush
+				{ 105757, 2 },   -- Dirty Tricks
+				{ 105756, 1 },   -- Camouflage
+				{ 105743, 1 },   -- Premeditation (row 3)
+				{ 105752, 3 },   -- Serrated Blades (opens Hemorrhage)
+				{ 105755, 3 },   -- Initiative
+				{ 105754, 1 },   -- Ghostly Strike (row 4)
+				{ 105753, 2 },   -- Elusiveness
+				{ 110867, 1 },   -- Quick Getaway (needs Dirty Tricks)
+				{ 105748, 1 },   -- Hemorrhage (row 5)
+				{ 105746, 1 },   -- Preparation
+				{ 105747, 2 },   -- Heightened Senses
+				{ 105722, 5 },   -- Malice (Assassination row 1)
+				{ 105742, 3 },   -- Improved Gouge
+				{ 105717, 2 },   -- Improved Expose Armor (row 2)
+				{ 105716, 2 },   -- Lethality (row 3, needs Malice)
+				{ 105720, 2 },   -- Vigor
+				{ 105718, 1 },   -- Blood Splatter
+				{ 105715, 1 },   -- Cold Blood (row 4)
+				{ 105708, 3 },   -- Coup de Grace (Combat row 1)
+				{ 105741, 2 },   -- Efficient Strikes
+				{ 105732, 2 },   -- Improved Sprint (row 2)
 			} },
 		},
 	},
@@ -1236,6 +1392,7 @@ end
 -- WoW Forever (Classic+ on the modern client, TOC 16001) has no specs: rotations
 -- there are keyed by class, "FOREVER_<CLASSFILE>" (e.g. FOREVER_PALADIN).
 local IS_FOREVER = (select(4, GetBuildInfo()) or 0) < 100000
+VS.IS_FOREVER = IS_FOREVER   -- the options panel and the VoidHub page: no "Automatic" rotation pick there
 
 -- Generated rotations (Rotations.lua, from voidscout-data/tools/cmd/rotation-pull): one
 -- per spec and hero tree, built from the top players' casts, so every spec has one. They
@@ -1329,7 +1486,12 @@ local function detectSpec()
 	if IS_FOREVER or (VoidSequencerDB and VoidSequencerDB.testForever) then
 		local _, classFile = UnitClass("player")
 		currentSpecID = nil
-		return classFile and ("FOREVER_" .. classFile) or DEFAULT_SPEC
+		if not classFile then return DEFAULT_SPEC end
+		-- a picked variant of the class rotation (FOREVER_PALADIN:Tank, 2026-11-25), kept per character
+		local base = "FOREVER_" .. classFile
+		local pick = VoidSequencerCharDB and VoidSequencerCharDB.rotPick and VoidSequencerCharDB.rotPick.forever
+		if type(pick) == "string" and DEFAULTS[pick] and pick:sub(1, #base + 1) == base .. ":" then return pick end
+		return base
 	end
 	local i = GetSpecialization and GetSpecialization()
 	if not i then return levelingKey() end
@@ -1365,9 +1527,23 @@ end
 -- The rotations this spec can run, for the options picker: hand-tuned ones first, then
 -- one generated per hero tree. { key, label }.
 function VS.RotationChoices()
-	-- WoW Forever: the spec API reports a placeholder spec, and these are retail top-player
-	-- rotations; the class rotation (FOREVER_<CLASS>) is the only one there (audit, 2026-11-09)
-	if IS_FOREVER then return {} end
+	-- WoW Forever: the spec API reports a placeholder spec, and the retail rotations don't apply; the choices are the
+	-- class rotation (FOREVER_<CLASS>) and its variants (FOREVER_PALADIN:Tank, 2026-11-25). One rotation = no menu.
+	if IS_FOREVER then
+		local _, classFile = UnitClass("player")
+		local base = classFile and ("FOREVER_" .. classFile)
+		if not base then return {} end
+		local out = {}
+		for key, d in pairs(DEFAULTS) do
+			-- a variant still being tested (d.hidden) stays out of the menu
+			if key == base or (key:sub(1, #base + 1) == base .. ":" and not d.hidden) then
+				out[#out + 1] = { key = key, label = VS.SpecLabel and VS.SpecLabel(key) or key }
+			end
+		end
+		if #out < 2 then return {} end
+		table.sort(out, function(a, b) return a.key < b.key end)
+		return out
+	end
 	local i = GetSpecialization and GetSpecialization()
 	local specID, name
 	if i then specID, name = GetSpecializationInfo(i) end
@@ -1393,7 +1569,13 @@ function VS.RotationChoices()
 	return out
 end
 function VS.GetRotationPick()
-	if IS_FOREVER then return nil end
+	-- WoW Forever: the rotation that runs (the picked variant, else the class rotation itself), never nil: there's no
+	-- "Automatic" there
+	if IS_FOREVER then
+		local _, classFile = UnitClass("player")
+		local p = VoidSequencerCharDB and VoidSequencerCharDB.rotPick and VoidSequencerCharDB.rotPick.forever
+		return p or (classFile and ("FOREVER_" .. classFile))
+	end
 	local i = GetSpecialization and GetSpecialization()
 	local specID = i and GetSpecializationInfo(i)
 	return specID and VoidSequencerCharDB and VoidSequencerCharDB.rotPick and VoidSequencerCharDB.rotPick[specID]
@@ -1401,6 +1583,9 @@ end
 
 -- "Unholy:San'layn" -> "Unholy (San'layn)" for chat and the options panel.
 local function specLabel(key)
+	-- a rotation with its own label ("Paladin: tank (WoW Forever)")
+	local d = DEFAULTS[key]
+	if d and d.label then return d.label end
 	-- "FOREVER_HUNTER" reads "Hunter (WoW Forever)"; "Unholy:San'layn" reads "Unholy (San'layn)"
 	local cls = tostring(key):match("^FOREVER_(%u+)$")
 	if cls then return cls:sub(1, 1) .. cls:sub(2):lower() .. " (WoW Forever)" end
@@ -1449,11 +1634,26 @@ local function curMods()
 	return VoidSequencerDB and VoidSequencerDB.mods or {}
 end
 
+-- A rotation's modsFallback = { ctrl = "Divine Protection" }: while the seeded Ctrl spell (Templar's Bulwark, a
+-- level-25 talent) isn't learned yet, the slot casts the fallback instead. Only when the slot still holds the
+-- rotation's own pick (one you chose yourself is never swapped). The macros are rebuilt on SPELLS_CHANGED, so the
+-- slot moves to the real spell by itself the moment you learn it.
+local function modSpell(mod, spell)
+	local d = DEFAULTS[currentSpec]
+	local fb = d and d.modsFallback and d.modsFallback[mod]
+	if not fb or not spell or not (d.mods and d.mods[mod] == spell) or mine() then return spell end
+	local info = C_Spell.GetSpellInfo(spell)
+	local id = info and info.spellID
+	local known = id and ((C_SpellBook.IsSpellKnownOrInSpellBook and C_SpellBook.IsSpellKnownOrInSpellBook(id))
+		or (not C_SpellBook.IsSpellKnownOrInSpellBook and C_SpellBook.IsSpellKnown(id)))
+	return known and spell or fb
+end
+
 local function modPrefix()
 	local m = curMods()
 	local lines = {}
 	for _, mod in ipairs({ "alt", "ctrl", "shift" }) do
-		local c = modCast(mod, m[mod])
+		local c = modCast(mod, modSpell(mod, m[mod]))
 		if c then lines[#lines + 1] = c end
 	end
 	if #lines == 0 then return "" end
@@ -1493,6 +1693,18 @@ local function knownForMacro(name)
 end
 local function spellbookReady()
 	return C_SpellBook.GetNumSpellBookSkillLines and (C_SpellBook.GetNumSpellBookSkillLines() or 0) > 0
+end
+-- The PvP rotation for this spec right now: the first d.pvpWhen entry whose spell you know (a talent set that teaches
+-- it: the rogue's Hemorrhage), else d.pvp. Before the spellbook has loaded: d.pvp (the rebuild on SPELLS_CHANGED
+-- picks again).
+function VS.PvpRotation(d)
+	if not d then return nil end
+	if d.pvpWhen and spellbookReady() then
+		for _, alt in ipairs(d.pvpWhen) do
+			if alt.spell and knownForMacro(alt.spell) then return alt.seq end
+		end
+	end
+	return d.pvp
 end
 local function trimSequence(line)
 	local body = line:match("^/castsequence%s+(.*)$")
@@ -1757,8 +1969,9 @@ local function LoadSequences(onlyIfChanged)
 	local fb = not my and d and d.fallback
 	loadTable("macrosST", seqOrPriority("ST"), "numST", lines, noAttack, fb)
 	loadTable("macrosAOE", seqOrPriority("AOE"), "numAOE", lines, noAttack, fb)
-	-- PvP: a third mode only for specs that define one (d.pvp, defaults only, not edited).
-	local pvpSeq = not my and d and d.pvp
+	-- PvP: a third mode only for specs that define one (d.pvp, defaults only, not edited). d.pvpWhen: a PvP rotation
+	-- for when a spell is known (the rogue's Hemorrhage set), checked each rebuild (SPELLS_CHANGED after a respec).
+	local pvpSeq = not my and d and VS.PvpRotation(d)
 	loadTable("macrosPVP", pvpSeq or {}, "numPVP", lines, noAttack)
 	-- Optional form loop (d.formLoop = { rule = "<conditions> form; ...", seq = {...} }):
 	-- the click snippet runs it when the rule says "form" (Resto: Cat Form, no friendly hovered).
@@ -2022,10 +2235,20 @@ local pendingEnable
 -- is protected in combat: deferred to PLAYER_REGEN_ENABLED then. Returns the mode.
 local pendingMode
 local pendingPlace   -- the switch's position, waiting for combat to end
+-- PvP mode as the switch has it (saved mode, and only when this spec has a PvP rotation)
+function VS.PvpModeOn()
+	return (VoidSequencerDB and VoidSequencerDB.pvp and btn:GetAttribute("haspvp")) and true or false
+end
+-- tell the watchers (VoidBars' PvP setup swap); each in its own pcall so one can't break the switch
+function VS.FireModeChange()
+	local pvp = VS.PvpModeOn()
+	for _, fn in ipairs(VS.modeWatchers or {}) do pcall(fn, pvp) end
+end
 local function PushMode()
 	local aoe = VoidSequencerDB and VoidSequencerDB.aoe and true or false
 	local pvp = VoidSequencerDB and VoidSequencerDB.pvp and btn:GetAttribute("haspvp") and true or false
 	toggle:SetText(modeLabel(aoe, pvp))
+	VS.FireModeChange()
 	if InCombatLockdown() then pendingMode = true return aoe end
 	btn:SetAttribute("aoe", aoe)
 	btn:SetAttribute("pvp", pvp)
@@ -2095,6 +2318,7 @@ toggle:HookScript("PostClick", function(self)
 	local pvp = btn:GetAttribute("pvp") and true or false
 	self:SetText(modeLabel(aoe, pvp))
 	if VoidSequencerDB then VoidSequencerDB.aoe, VoidSequencerDB.pvp = aoe, pvp end
+	VS.FireModeChange()
 end)
 toggle:RegisterForDrag("RightButton")
 toggle:SetScript("OnDragStart", function(self)
@@ -3217,7 +3441,13 @@ local function rotationNames()
 		for part in body:gmatch("[^,;]+") do add(part) end
 	end
 	if not VoidSequencerDB then return used end
-	for _, mode in ipairs({ "ST", "AOE" }) do
+	local d = DEFAULTS[currentSpec]
+	-- what key 1 casts in the mode you're in (the user's rogue, 2026-11-27): in PvP mode the PvP rotation (the one your
+	-- talent set picks; VoidBars' suggested keys had left Hemorrhage and Ghostly Strike on keys 5 and Shift-2 while key
+	-- 1 cast them), else ST + AoE. Not both: the ST rotation's Ambush and Slice and Dice would then stay off a PvP
+	-- setup's keys although key 1 never casts them in PvP. VoidBars keeps a dungeon and a PvP setup apart (ModeSwap).
+	local pvpOn = VS.PvpModeOn and VS.PvpModeOn() and not mine()   -- your own rotation has no PvP mode (Codex 11-27)
+	for _, mode in ipairs(pvpOn and {} or { "ST", "AOE" }) do
 		for _, step in ipairs(seqFor(mode) or {}) do
 			for _, sp in ipairs(step) do
 				if type(sp) == "string" and sp ~= "" then
@@ -3227,8 +3457,22 @@ local function rotationNames()
 			end
 		end
 	end
-	local d = DEFAULTS[currentSpec]
+	if pvpOn and not mine() then
+		for _, step in ipairs((d and VS.PvpRotation(d)) or {}) do
+			for _, sp in ipairs(step) do
+				if type(sp) == "string" and sp ~= "" then
+					local s = sp:gsub("^%[n?o?dagger%]", "")
+					if s:sub(1, 1) == "/" then addRaw(s) else add(s) end
+				end
+			end
+		end
+	end
 	for _, n in ipairs(d and d.headSpells or {}) do add(n) end
+	-- in PvP mode, a spell key 1 only casts in a narrow case stays the player's on their bars (the rogue's Ambush
+	-- after Ghostly Strike; their stealth-page Ambush is still theirs)
+	if pvpOn then
+		for n in pairs(d and d.keepOnBars or {}) do used[n] = nil end
+	end
 	return used
 end
 
@@ -3245,6 +3489,11 @@ VoidSequencerAPI = {
 	SyncVehicleKey = SyncVehicleKey,   -- VoidBars calls this when it parks / restores Blizzard's bars
 	-- { [spell] = macroName } for this spec's healer key macros (made / updated now; out of combat)
 	HealMacros = function() return UpdateHealMacros(true) end,
+	-- PvP mode on the ST / AoE / PvP switch (only when this spec has a PvP rotation). VoidBars swaps your keys and
+	-- gear with it (the user, 2026-11-27: "when i select pvp it swaps gear and my naga buttons").
+	IsPvpMode = function() return VS.PvpModeOn() end,
+	-- fn(pvp) runs whenever the switch's mode is set (a click, the mode restored at login); can run in combat
+	OnModeChange = function(fn) VS.modeWatchers = VS.modeWatchers or {}; table.insert(VS.modeWatchers, fn) end,
 }
 
 SLASH_VSCHECK1 = "/vscheck"
@@ -3698,13 +3947,19 @@ end
 -- Pick the rotation for the current spec (nil = automatic: tuned, else your hero tree's).
 -- Saved per character and spec; loads at once out of combat.
 function VS.SetRotationPick(key)
-	local i = GetSpecialization and GetSpecialization()
-	local specID = i and GetSpecializationInfo(i)
-	if not specID then return end
 	if InCombatLockdown() then print("|cffcc66ffVoidSequencer|r: leave combat to change the rotation.") return end
 	VoidSequencerCharDB = VoidSequencerCharDB or {}
 	VoidSequencerCharDB.rotPick = VoidSequencerCharDB.rotPick or {}
-	VoidSequencerCharDB.rotPick[specID] = key
+	if IS_FOREVER then
+		-- WoW Forever: one pick per character (the spec API is a placeholder there); the class rotation = nil
+		local _, classFile = UnitClass("player")
+		VoidSequencerCharDB.rotPick.forever = (key and key ~= ("FOREVER_" .. tostring(classFile))) and key or nil
+	else
+		local i = GetSpecialization and GetSpecialization()
+		local specID = i and GetSpecializationInfo(i)
+		if not specID then return end
+		VoidSequencerCharDB.rotPick[specID] = key
+	end
 	if VS.Mine and VS.mineSlot then VS.Mine.SetActive(VS.mineSlot, nil) end   -- a suggested one runs; yours are kept
 	ApplySpec()
 	PushMode()
@@ -3887,3 +4142,11 @@ ev:SetScript("OnEvent", function(_, event, unit)
 	end
 end)
 
+
+-- for tools/cmd/vseq-pvp-test (offline): the defaults and how one step becomes its macro (head + step + tail)
+VS._test = {
+	DEFAULTS = DEFAULTS,
+	setSpec = function(s) currentSpec = s end,
+	stepToMacro = function(step) return stepToMacro(step) end,
+	setHasPvp = function(v) btn:SetAttribute("haspvp", v) end,
+}
